@@ -1,26 +1,11 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/*
+ * 프로젝터/TV 환경에서 일관되게 보이도록 다크 모드는 지원하지 않는다 (라이트 고정).
+ * 빌드·실행 모두 네트워크 없이 가능하도록 웹폰트 대신 시스템 한글 폰트를 사용한다.
+ * 웹폰트가 필요해지면 next/font/local로 self-host 한다 (Google Fonts는 빌드 시 네트워크 필요).
+ */
+@theme {
+  --font-sans:
+    "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
 }

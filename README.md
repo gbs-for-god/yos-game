@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# yos-game ⛪
 
-## Getting Started
+교회 레크레이션 게임 모음. 진행자가 노트북을 프로젝터/TV에 연결해 진행하는 **클라이언트 전용** 웹앱입니다.
 
-First, run the development server:
+## 시작하기
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm exec playwright install chromium   # E2E 테스트용 (최초 1회)
+pnpm dev                                # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 스크립트
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| 명령            | 설명                                     |
+| --------------- | ---------------------------------------- |
+| `pnpm dev`      | 개발 서버                                |
+| `pnpm build`    | 프로덕션 빌드                            |
+| `pnpm check`    | 타입 체크 + ESLint + Prettier 검사       |
+| `pnpm test:e2e` | Playwright E2E 테스트                    |
+| `pnpm verify`   | `check` + `test:e2e` (작업 완료 전 실행) |
+| `pnpm format`   | Prettier 자동 포맷                       |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+커밋 시 Husky pre-commit 훅이 lint-staged(ESLint + Prettier)와 타입 체크를 자동 실행합니다.
 
-## Learn More
+## 문서
 
-To learn more about Next.js, take a look at the following resources:
+- [AGENTS.md](AGENTS.md) — AI 에이전트/기여자 작업 규칙
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 구조와 설계 원칙
+- [docs/CONVENTIONS.md](docs/CONVENTIONS.md) — 코드 컨벤션
+- [docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md) — 새 게임 추가 방법
+- [docs/TESTING.md](docs/TESTING.md) — 테스트 가이드
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 배포
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Vercel에 GitHub 저장소를 연결하면 `main` 브랜치 푸시 시 자동 배포됩니다.
