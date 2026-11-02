@@ -36,7 +36,7 @@
   ];
   ```
 
-- [ ] **7. 게임 데이터/에셋** — 문제 목록 등 데이터는 `games/<slug>/data.ts`, 이미지·사운드는 `public/games/<slug>/`
+- [ ] **7. 게임 데이터/에셋** — 문제 목록 등 데이터는 `games/<slug>/data.ts` 또는 `games/<slug>/data/*.json` (예: [`games/manito-mission/data/`](../games/manito-mission/data)), 이미지·사운드는 `public/games/<slug>/`
 - [ ] **8. E2E 테스트** — `e2e/<slug>.spec.ts`에 최소 1개의 핵심 플로우 테스트 (시작 → 한 번 진행 → 결과 확인)
 - [ ] **9. 검증** — `pnpm verify` 통과
 - [ ] **10. 브라우저 확인** — `pnpm dev` 후 1920×1080 전체화면에서 글자 크기·가독성 확인

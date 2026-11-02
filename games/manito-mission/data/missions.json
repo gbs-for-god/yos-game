@@ -1,0 +1,72 @@
+[
+  {
+    "id": "shadow-praise",
+    "emoji": "🕵️",
+    "title": "그림자 칭찬 작전",
+    "description": "마니또가 없는 자리에서 다른 사람 3명에게 마니또 칭찬을 퍼뜨리세요. 칭찬이 돌고 돌아 마니또 귀에 들어가면 대성공!",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "secret-verse",
+    "emoji": "✉️",
+    "title": "비밀 말씀 배달부",
+    "description": "마니또에게 힘이 될 성경 구절을 쪽지에 적어 성경책이나 가방에 몰래 넣어두세요. 넣는 순간을 들키면 실패!",
+    "timeLimit": "다음 모임 전까지"
+  },
+  {
+    "id": "high-five",
+    "emoji": "🙌",
+    "title": "하이파이브 3연타",
+    "description": "마니또와 자연스럽게 하이파이브를 3번 하세요. 부탁하지 말고, 분위기를 만들어 유도해야 합니다.",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "snack-fairy",
+    "emoji": "🍬",
+    "title": "간식 요정",
+    "description": "마니또 자리에 작은 간식을 몰래 놓아두세요. 마니또가 \"이거 누가 놨어?\"라고 말하면 미션 성공!",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "hallelujah",
+    "emoji": "🗣️",
+    "title": "할렐루야를 외쳐라",
+    "description": "대화 중에 마니또가 스스로 \"할렐루야\"라고 말하게 만드세요. \"할렐루야 해봐\"처럼 직접 시키면 실패!",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "secret-prayer",
+    "emoji": "🙏",
+    "title": "비밀 중보기도",
+    "description": "마니또의 기도제목을 들키지 않게 알아내서 매일 기도해 주세요. 마니또 공개 날, 그 기도제목을 말해주면 완성!",
+    "timeLimit": "마니또 공개 날까지"
+  },
+  {
+    "id": "secret-photographer",
+    "emoji": "📸",
+    "title": "몰래 전속 작가",
+    "description": "마니또의 가장 멋지고 환하게 웃는 순간을 몰래 사진으로 남기세요. 공개 날 선물로 보여주세요!",
+    "timeLimit": "마니또 공개 날까지"
+  },
+  {
+    "id": "seat-keeper",
+    "emoji": "🪑",
+    "title": "우연한 옆자리",
+    "description": "예배나 모임 시간에 마니또 옆자리에 2번 이상 앉으세요. 매번 '우연인 척' 하는 연기력이 핵심입니다.",
+    "timeLimit": "마니또 공개 날까지"
+  },
+  {
+    "id": "praise-detective",
+    "emoji": "🎵",
+    "title": "찬양 탐정",
+    "description": "마니또가 가장 좋아하는 찬양을 알아낸 뒤, 그 찬양을 옆에서 흥얼거려 마니또가 따라 부르게 만드세요.",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "quiet-servant",
+    "emoji": "🤝",
+    "title": "투명 섬김이",
+    "description": "마니또를 위해 몰래 작은 섬김 3가지를 하세요. (예: 물 떠다주기, 신발 정리, 의자 챙겨주기) 생색내면 무효!",
+    "timeLimit": "오늘 모임 끝까지"
+  }
+]
