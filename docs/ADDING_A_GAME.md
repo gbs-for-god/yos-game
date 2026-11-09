@@ -45,3 +45,4 @@
 
 - **팀 점수판 / 타이머 / 키보드 단축키** 가 두 번째 게임에서도 필요해지면 그때 `components/` 또는 `lib/hooks/`로 추출한다. 처음부터 공용으로 만들지 않는다.
 - **새로고침 대비 저장**: `localStorage` 키는 `yos-game:<slug>:<key>`.
+- **참가자 휴대폰까지 같은 상태를 봐야 하면** 서버 상태가 필요하다. [`games/manito-mission/`](../games/manito-mission)의 `server/`·`client.ts`·`app/api/manito-mission/`을 본보기로 삼고, 규칙은 [ARCHITECTURE.md의 "서버 상태"](ARCHITECTURE.md#서버-상태-기기-간-공유가-필요한-게임만)를 따른다. 사용자에게 먼저 확인할 것.

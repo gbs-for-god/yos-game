@@ -5,7 +5,7 @@
 ## 실행 환경
 
 - 진행자 노트북(데스크톱 브라우저, 1920×1080 기준) → 프로젝터/TV 출력
-- 참가자 기기 연동 없음, 서버 상태 없음, 네트워크가 끊겨도 게임 진행 가능해야 함
+- 기본은 서버 상태 없이 진행자 노트북 한 대로 동작한다. 참가자가 휴대폰으로 참여하는 게임(마니또 미션)만 서버 상태를 쓴다 (아래 "서버 상태" 참고)
 - 모든 게임 페이지는 빌드 시 정적으로 생성된다 (`generateStaticParams`). `cacheComponents` 환경이라 `dynamicParams`는 쓸 수 없으며, 미등록 slug는 `notFound()`로 not-found UI를 보여준다 (스트리밍 특성상 상태 코드는 200일 수 있음)
 
 ## 디렉터리 구조
@@ -17,14 +17,17 @@ yos-game/
 │   ├── page.tsx              # 홈: 레지스트리 기반 게임 목록
 │   ├── not-found.tsx         # 404 화면 (미등록 slug 포함)
 │   ├── globals.css           # Tailwind 진입점 + 테마 토큰
-│   └── games/[slug]/page.tsx # 게임 공통 셸: 헤더 + 레지스트리에서 찾은 게임 렌더
+│   ├── games/[slug]/page.tsx # 게임 공통 셸: 헤더 + 레지스트리에서 찾은 게임 렌더
+│   └── api/<slug>/…/route.ts # (서버 상태 게임만) 얇은 Route Handler → games/<slug>/server/ 호출
 ├── games/                    # 게임 모음 (기능 단위 폴더)
 │   ├── types.ts              # GameMeta 타입
 │   ├── registry.ts           # 게임 등록부 (SSOT)
 │   └── <slug>/               # 게임 1개 = 폴더 1개
 │       ├── meta.ts           # 제목·설명·인원 등 메타데이터
 │       ├── logic.ts          # 순수 함수: 규칙, 상태 전이 (React 의존 X)
-│       └── Game.tsx          # "use client" 게임 UI (진입 컴포넌트, default export)
+│       ├── Game.tsx          # "use client" 게임 UI (진입 컴포넌트, default export)
+│       ├── client.ts         # (서버 상태 게임만) API 호출 + 폴링 훅
+│       └── server/           # (서버 상태 게임만) 저장소·요청 처리. 클라이언트에서 import 금지
 ├── components/ui/            # 2개 이상 게임이 쓰는 공용 UI (Button 등)
 ├── lib/                      # 공용 유틸 (cn 등), 공용 훅은 lib/hooks/
 ├── e2e/                      # Playwright 테스트 (*.spec.ts)
@@ -59,9 +62,20 @@ flowchart LR
 - 상태 전이 함수는 `logic.ts`에 두어 `useReducer`의 reducer로 그대로 쓸 수 있게 한다
 - 새로고침 후에도 유지해야 하는 값(점수판 등)만 `localStorage` 사용 — 키는 `yos-game:<slug>:<key>` 형식
 
+## 서버 상태 (기기 간 공유가 필요한 게임만)
+
+참가자가 각자 휴대폰으로 접속해 같은 게임을 봐야 할 때만 서버 상태를 둔다. 현재는 마니또 미션이 유일하다.
+
+- **저장소**: Upstash Redis. Vercel Marketplace 연동으로 붙이며 `KV_REST_API_URL`/`KV_REST_API_TOKEN`(또는 `UPSTASH_REDIS_REST_*`) 환경 변수를 읽는다. 변수가 없으면 서버 메모리 저장소로 대체되어 로컬 개발·E2E는 네트워크 없이 돌아간다 (`.env.example` 참고)
+- **구조**: `app/api/<slug>/…/route.ts`는 요청을 `games/<slug>/server/handlers.ts`로 넘기기만 한다. 핸들러는 요청 검증 → `logic.ts` 순수 함수로 상태 전이 → `server/store.ts`에 기록 → 응답 순서로 동작한다
+- **동기화**: 서버 푸시 없이 클라이언트가 3초 간격으로 다시 읽는다 (`games/<slug>/client.ts`의 `usePolledState`). 동작(POST)의 응답으로 자기 화면은 즉시 갱신한다
+- **동시 쓰기**: 여러 기기가 동시에 쓰는 값(확인 여부 등)은 Redis 해시의 필드 단위로 써서 덮어쓰기를 피한다. 한 사람(사회자)만 바꾸는 값은 JSON 하나로 저장한다
+- **권한**: 로그인이 없으므로 사회자 동작은 `x-host-pin` 헤더의 비밀번호로 구분한다(`MANITO_HOST_PIN` 환경 변수, 없으면 데이터 파일 값). 참여자 휴대폰에는 본인 배정과 공개된 정보만 내려 준다
+- **클라이언트 경계**: `games/<slug>/server/`는 Route Handler에서만 import 한다. 클라이언트가 쓰는 타입은 `import type`으로만 가져온다
+
 ## 하지 않는 것 (현 단계)
 
-- 백엔드(Route Handler / Server Action / DB / 인증)
+- 위 "서버 상태" 범위를 넘는 백엔드(Server Action, 다른 DB/외부 API, 인증)
 - 상태 관리 라이브러리, CSS-in-JS, UI 컴포넌트 라이브러리
 - 단위 테스트 프레임워크 (필요해지면 Vitest 도입을 검토)
 

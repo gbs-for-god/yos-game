@@ -68,5 +68,75 @@
     "title": "투명 섬김이",
     "description": "마니또를 위해 몰래 작은 섬김 3가지를 하세요. (예: 물 떠다주기, 신발 정리, 의자 챙겨주기) 생색내면 무효!",
     "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "name-chant",
+    "emoji": "📣",
+    "title": "이름 세 번 부르기",
+    "description": "오늘 모임 중 마니또의 이름을 자연스럽게 세 번 이상 크게 불러 주세요. 마니또가 \"왜 자꾸 불러?\"라고 하면 성공!",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "secret-letter",
+    "emoji": "💌",
+    "title": "익명 손편지",
+    "description": "마니또에게 손편지를 써서 공개 날 전해 주세요. 글씨체를 들키지 않도록 평소와 다르게 쓰는 것이 포인트!",
+    "timeLimit": "마니또 공개 날까지"
+  },
+  {
+    "id": "laugh-maker",
+    "emoji": "😂",
+    "title": "웃음 제조기",
+    "description": "마니또를 오늘 하루 세 번 이상 소리 내어 웃게 만드세요. 간지럼 태우기는 반칙입니다.",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "coffee-angel",
+    "emoji": "☕",
+    "title": "음료 천사",
+    "description": "마니또가 좋아하는 음료를 알아내서 마니또 손에 들려주세요. 직접 주지 말고 다른 사람을 통해 전달해야 합니다.",
+    "timeLimit": "다음 모임 전까지"
+  },
+  {
+    "id": "amen-echo",
+    "emoji": "🔔",
+    "title": "아멘 메아리",
+    "description": "마니또가 \"아멘\"이라고 말할 때마다 바로 뒤이어 \"아멘!\"을 외치세요. 세 번 성공하면 미션 완료!",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "compliment-direct",
+    "emoji": "🌟",
+    "title": "정면 칭찬",
+    "description": "마니또에게 직접 진심 어린 칭찬을 한 가지 하세요. 단, 마니또라는 사실은 절대 들키지 않게!",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "memory-collector",
+    "emoji": "🧠",
+    "title": "기억 수집가",
+    "description": "마니또의 생일, 좋아하는 음식, 최근 고민 중 두 가지를 알아내세요. 공개 날 말해 주면 완료!",
+    "timeLimit": "마니또 공개 날까지"
+  },
+  {
+    "id": "shoulder-tap",
+    "emoji": "👋",
+    "title": "어깨 톡톡",
+    "description": "마니또의 어깨를 가볍게 두드리고 모른 척 지나가기를 세 번 성공하세요. 들키면 그 자리에서 실패!",
+    "timeLimit": "오늘 모임 끝까지"
+  },
+  {
+    "id": "blessing-prayer",
+    "emoji": "🕊️",
+    "title": "축복 기도 선물",
+    "description": "마니또를 위한 짧은 축복 기도문을 써서 공개 날 모두 앞에서 읽어 주세요.",
+    "timeLimit": "마니또 공개 날까지"
+  },
+  {
+    "id": "selfie-together",
+    "emoji": "🤳",
+    "title": "우연한 셀카",
+    "description": "마니또와 함께 찍힌 사진을 한 장 이상 확보하세요. 단체 사진은 인정하지 않습니다!",
+    "timeLimit": "마니또 공개 날까지"
   }
 ]

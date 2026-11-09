@@ -24,6 +24,8 @@ pnpm exec playwright show-report                     # 마지막 리포트 보�
 - `waitForTimeout` 대신 `expect(...).toHaveText` 같은 자동 대기 assertion 사용
 - 타이머가 있는 게임은 `page.clock` API로 시간을 제어한다
 - HTTP 상태 코드(404 등)는 검증하지 않는다 — `cacheComponents` 스트리밍 때문에 200으로 응답할 수 있으므로 화면 내용으로 검증
+- 서버 상태를 쓰는 게임(마니또 미션)은 테스트끼리 상태를 공유하므로 `test.describe.configure({ mode: "serial" })`로 직렬 실행하고, `beforeEach`에서 사회자 권한으로 `DELETE /api/<slug>/session`을 호출해 초기화한다
+- 기기 간 공유는 `browser.newContext()`로 두 번째 브라우저(휴대폰 뷰포트)를 열어 검증한다. 다른 기기의 변화는 폴링(3초)으로 반영되므로 assertion 에 10초 정도의 timeout 을 준다
 
 ## 샌드박스/CI 환경 메모
 

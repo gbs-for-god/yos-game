@@ -1,0 +1,160 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { MissionList } from "./MissionList";
+import { resolveMissions, type Assignment, type Mission, type PublicSession } from "./logic";
+
+type HostScreenProps = {
+  session: PublicSession;
+  assignments: Record<string, Assignment>;
+  missions: readonly Mission[];
+  /** 저장된 명단이 현재 members.json 과 다른지 */
+  membersChanged: boolean;
+  /** 참여자가 휴대폰으로 접속할 주소 (화면에 크게 보여 준다) */
+  participantUrl: string | null;
+  onRedrawMissions: (name: string) => void;
+  onRedrawAll: () => void;
+  onEndGame: () => void;
+  onBack: () => void;
+};
+
+type PendingAction = "redrawAll" | "endGame" | null;
+
+/** 사회자 전용: 모든 참여자의 마니또·미션을 한눈에 보고 다시 뽑기/게임 종료를 조작하는 화면 */
+export function HostScreen({
+  session,
+  assignments,
+  missions,
+  membersChanged,
+  participantUrl,
+  onRedrawMissions,
+  onRedrawAll,
+  onEndGame,
+  onBack,
+}: HostScreenProps) {
+  const [pending, setPending] = useState<PendingAction>(null);
+  const isReveal = session.phase === "reveal";
+
+  return (
+    <section className="flex flex-1 flex-col gap-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h2 className="text-5xl font-black">🔒 사회자 화면</h2>
+        <p className="rounded-full bg-amber-100 px-5 py-2 text-xl font-bold text-amber-800">
+          ⚠️ 이 화면은 프로젝터에 띄우지 마세요
+        </p>
+      </div>
+
+      {participantUrl && (
+        <p className="rounded-2xl bg-indigo-50 px-6 py-4 text-xl text-indigo-900">
+          📱 참여자 휴대폰 접속 주소: <span className="font-bold select-all">{participantUrl}</span>
+          <span className="ml-2 text-zinc-600">(같은 주소에서 자기 이름을 누르면 됩니다)</span>
+        </p>
+      )}
+
+      {membersChanged && (
+        <p role="alert" className="rounded-2xl bg-red-50 px-6 py-4 text-2xl font-bold text-red-700">
+          명단(data/members.json)이 저장된 게임과 달라요. &quot;전체 다시 뽑기&quot;를 누르면 새
+          명단으로 시작합니다.
+        </p>
+      )}
+
+      <table className="w-full border-collapse text-xl">
+        <thead>
+          <tr className="border-b-4 border-zinc-300 text-left text-zinc-600">
+            <th className="px-4 py-3">이름</th>
+            <th className="px-4 py-3">확인</th>
+            <th className="px-4 py-3">마니또</th>
+            <th className="px-4 py-3">미션</th>
+            <th className="px-4 py-3">미션 다시 뽑기</th>
+          </tr>
+        </thead>
+        <tbody>
+          {session.memberNames.map((name) => {
+            const assignment = assignments[name];
+            if (!assignment) return null;
+            return (
+              <tr
+                key={name}
+                data-testid="host-row"
+                className="border-b-2 border-zinc-200 align-top"
+              >
+                <td data-testid="host-row-name" className="px-4 py-4 text-2xl font-bold">
+                  {name}
+                  {name === session.hostName && (
+                    <span className="ml-2 text-xl font-normal text-zinc-500">(사회자)</span>
+                  )}
+                </td>
+                <td className="px-4 py-4">{session.viewed[name] ? "✅ 확인 완료" : "⬜ 미확인"}</td>
+                <td
+                  data-testid="host-row-manito"
+                  className="px-4 py-4 text-2xl font-bold text-indigo-700"
+                >
+                  {assignment.manito}
+                </td>
+                <td className="px-4 py-4">
+                  <MissionList
+                    variant="compact"
+                    missions={resolveMissions(assignment.missionIds, missions)}
+                  />
+                </td>
+                <td className="px-4 py-4">
+                  <Button
+                    variant="secondary"
+                    aria-label={`${name} 미션 다시 뽑기`}
+                    disabled={isReveal}
+                    onClick={() => onRedrawMissions(name)}
+                  >
+                    🔄 다시 뽑기
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {pending && (
+        <div
+          role="alertdialog"
+          aria-labelledby="pending-message"
+          className="flex flex-col items-center gap-6 rounded-3xl border-4 border-red-200 bg-red-50 px-10 py-8 text-center"
+        >
+          <p id="pending-message" className="text-3xl font-bold text-red-800">
+            {pending === "redrawAll"
+              ? "정말 전체를 다시 뽑을까요? 모든 사람의 마니또와 미션이 새로 정해집니다."
+              : "게임을 종료하고 공개 화면으로 넘어갈까요? 이후에는 미션을 다시 뽑을 수 없습니다."}
+          </p>
+          <div className="flex items-center gap-6">
+            <Button
+              size="lg"
+              className="bg-red-600 hover:bg-red-500"
+              onClick={() => {
+                if (pending === "redrawAll") onRedrawAll();
+                else onEndGame();
+                setPending(null);
+              }}
+            >
+              {pending === "redrawAll" ? "네, 전체 다시 뽑기" : "네, 게임 종료"}
+            </Button>
+            <Button variant="secondary" size="lg" onClick={() => setPending(null)}>
+              취소
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-center gap-6">
+        <Button variant="secondary" size="lg" onClick={onBack}>
+          {isReveal ? "공개 화면으로" : "참여자 화면으로"}
+        </Button>
+        <Button variant="secondary" size="lg" onClick={() => setPending("redrawAll")}>
+          🔄 전체 다시 뽑기
+        </Button>
+        {!isReveal && (
+          <Button size="lg" onClick={() => setPending("endGame")}>
+            🎉 게임 종료하고 공개하기
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
