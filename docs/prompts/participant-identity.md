@@ -97,3 +97,23 @@
 
 - `pnpm check` 통과, `pnpm test:e2e` 22개 통과 (등록 6, 사회자 메뉴 2, 마니또 9, 홈 3, 번호 뽑기 2)
 - 꺼짐 상태: 변경 링크 없음, `/join` 안내, 화면 우회 POST 403 확인. 켬: 다른 기기에서도 링크가 보이고 이름 변경 성공. 비밀번호 없이/틀린 비밀번호로 PUT 401 확인.
+
+## 2026-11-10 — 사회자 비밀번호 기본값 변경
+
+### 요청 프롬프트
+
+> 비밀번호 기본 값은 9409로 변경해
+
+### 구현 결정
+
+- `lib/server/hostPin.ts`의 `DEFAULT_HOST_PIN`을 `"0000"` → `"9409"`로 바꿨다. `HOST_PIN` 환경 변수가 있으면 여전히 그 값이 우선한다.
+- 기본값을 쓰는 `e2e/helpers.ts`, `.env.example`, `docs/ARCHITECTURE.md`, `games/manito-mission/README.md`도 함께 갱신했다. 과거 기록(`docs/prompts/manito-mission.md` 등)의 `0000`은 당시 사실이라 그대로 둔다.
+- 기본값은 소스에 들어 있어 저장소를 볼 수 있는 사람에게는 알려진 값이다. 운영에서는 `HOST_PIN` 환경 변수로 별도 값을 설정하는 것이 안전하다.
+
+### 변경 파일
+
+- `lib/server/hostPin.ts`, `e2e/helpers.ts`, `.env.example`, `docs/ARCHITECTURE.md`, `games/manito-mission/README.md`
+
+### 검증
+
+- `pnpm verify` 통과

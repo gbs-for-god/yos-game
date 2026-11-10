@@ -27,6 +27,7 @@ pnpm exec playwright show-report                     # 마지막 리포트 보�
 - 서버 상태를 쓰는 테스트(참여자 등록, 마니또 미션)는 테스트끼리 상태를 공유하므로 `test.describe.configure({ mode: "serial" })`로 직렬 실행하고, `beforeEach`에서 사회자 권한으로 `DELETE /api/participants`·`DELETE /api/<slug>/session`을 호출해 초기화한다
 - 등록하지 않은 기기는 모든 화면에서 `/join`으로 가므로, 서버 상태를 쓰지 않는 테스트(홈·번호 뽑기)는 `e2e/helpers.ts`의 `seedIdentity`로 브라우저에 신원을 심어 시작한다
 - 참여자로 행동하는 테스트는 `registerViaApi`로 서버에 미리 등록하고 `seedIdentity`로 그 신원을 휴대폰 컨텍스트에 심는다. 입력 화면 자체를 검증할 때만 `fillJoinForm`을 쓴다 (`e2e/manito-mission.spec.ts` 참고)
+- 외부 스크립트(예: YouTube IFrame API)에 의존하는 게임은 `page.route`로 스크립트를 가짜로 바꿔치기해 네트워크 없이 검증하고, 타이머는 `page.clock`으로 돌린다 (`e2e/kpop-quiz.spec.ts` 참고)
 - 이름 변경 허용 설정은 서버에 남으므로 `setAllowRename`(`e2e/helpers.ts`)으로 테스트마다 명시해 둔다
 - 서버 상태를 공유하는 spec(`join`, `host`, `manito-mission`)은 `playwright.config.ts`의 프로젝트로 나뉘어 차례로 실행된다. 새 spec 이 참가자 등록을 서버에 남기면 `SERVER_STATE_SPECS`에 추가한다
 - Next.js 라우트 안내자(`#__next-route-announcer__`)도 `role="alert"`이므로 오류 문구는 `getByRole("alert").filter({ hasText })`로 찾는다

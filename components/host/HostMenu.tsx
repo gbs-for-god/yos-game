@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
+import { HostPinForm } from "@/components/host/HostPinForm";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { LOADING, useStoredValue } from "@/lib/hooks/useStoredValue";
@@ -20,62 +21,10 @@ export function HostMenu() {
   if (storedPin === LOADING) {
     return <p className="text-center text-2xl text-zinc-500">불러오는 중...</p>;
   }
-  if (storedPin === null) return <PinForm />;
-  return <Settings pin={storedPin} />;
-}
-
-function PinForm() {
-  const [input, setInput] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [checking, setChecking] = useState(false);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setChecking(true);
-    try {
-      await fetchSettings(input); // 틀리면 401 로 던진다
-      hostPinStore.save(input);
-    } catch (err) {
-      setError(describeSettingsError(err));
-      setInput("");
-    } finally {
-      setChecking(false);
-    }
+  if (storedPin === null) {
+    return <HostPinForm title="🔒 사회자 메뉴" />;
   }
-
-  return (
-    <form
-      onSubmit={submit}
-      className="flex flex-1 flex-col items-center justify-center gap-8 text-center"
-    >
-      <h1 className="text-5xl font-black">🔒 사회자 메뉴</h1>
-      <p className="text-2xl text-zinc-600">사회자 비밀번호를 입력하세요.</p>
-      <label htmlFor="host-pin" className="text-2xl">
-        사회자 비밀번호
-      </label>
-      <input
-        id="host-pin"
-        type="password"
-        inputMode="numeric"
-        autoComplete="off"
-        autoFocus
-        value={input}
-        onChange={(e) => {
-          setInput(e.target.value);
-          setError(null);
-        }}
-        className="w-64 rounded-2xl border-4 border-zinc-300 px-5 py-3 text-center text-4xl tracking-widest"
-      />
-      {error && (
-        <p role="alert" className="text-2xl font-bold text-red-600">
-          {error}
-        </p>
-      )}
-      <Button type="submit" size="lg" disabled={checking}>
-        {checking ? "확인 중..." : "들어가기"}
-      </Button>
-    </form>
-  );
+  return <Settings pin={storedPin} />;
 }
 
 function Settings({ pin }: { pin: string }) {

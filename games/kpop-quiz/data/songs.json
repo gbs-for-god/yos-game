@@ -1,0 +1,66 @@
+[
+  {
+    "id": "snsd-gee",
+    "title": "Gee",
+    "artist": "소녀시대",
+    "youtubeId": "qizghQs4K6E",
+    "startTime": 0,
+    "chorusStart": 58.6
+  },
+  {
+    "id": "wondergirls-nobody",
+    "title": "Nobody",
+    "artist": "원더걸스",
+    "youtubeId": "N9SNUWlsCVs",
+    "startTime": 0,
+    "chorusStart": 57.4
+  },
+  {
+    "id": "bigbang-harubaru",
+    "title": "하루하루",
+    "artist": "빅뱅",
+    "youtubeId": "c84VnpGFbrw",
+    "startTime": 0,
+    "chorusStart": 75.8
+  },
+  {
+    "id": "brownedgirls-abracadabra",
+    "title": "Abracadabra",
+    "artist": "브라운아이드걸스",
+    "youtubeId": "bFVuop4le-k",
+    "startTime": 0,
+    "chorusStart": 29.5
+  },
+  {
+    "id": "2pm-heartbeat",
+    "title": "Heartbeat",
+    "artist": "2PM",
+    "youtubeId": "YhMFInv1Clc",
+    "startTime": 0,
+    "chorusStart": 73.4
+  },
+  {
+    "id": "superjunior-sorrysorry",
+    "title": "쏘리 쏘리 (Sorry, Sorry)",
+    "artist": "슈퍼주니어",
+    "youtubeId": "_rX0IoeMSoc",
+    "startTime": 0,
+    "chorusStart": 14.7
+  },
+  {
+    "id": "shinee-ringdingdong",
+    "title": "링딩동",
+    "artist": "샤이니",
+    "youtubeId": "AjTDxSzVCWE",
+    "startTime": 0,
+    "chorusStart": 68.8
+  },
+  {
+    "id": "2ne1-fire",
+    "title": "Fire",
+    "artist": "2NE1",
+    "youtubeId": "48ZRVhNl1wA",
+    "startTime": 0,
+    "chorusStart": 16.7
+  }
+]

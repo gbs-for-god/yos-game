@@ -7,7 +7,7 @@ import { expect, type APIRequestContext, type BrowserContext, type Page } from "
  */
 
 /** 사회자 비밀번호. 서버와 같은 규칙으로 HOST_PIN 환경 변수가 없으면 기본값(lib/server/hostPin.ts)을 쓴다 */
-export const HOST_PIN = process.env.HOST_PIN || "0000";
+export const HOST_PIN = process.env.HOST_PIN || "9409";
 export const HOST_HEADERS = { "x-host-pin": HOST_PIN };
 
 /** lib/participants/client.ts 의 신원 저장 키 */
