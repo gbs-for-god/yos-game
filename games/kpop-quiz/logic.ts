@@ -20,9 +20,11 @@ export type Song = {
 };
 
 export type QuizState = {
+  /** 지금 곡 순서 (섞으면 바뀐다) */
   songs: readonly Song[];
   index: number;
-  revealed: boolean;
+  /** 정답을 공개한 곡의 id. 곡을 옮겨도, 새로고침해도 공개 상태로 남는다 */
+  revealed: readonly string[];
 };
 
 /** "앞부분 N초 듣기" 버튼에 쓰는 길이(초) */
@@ -53,18 +55,26 @@ export function validateSongs(songs: readonly Song[]): string | null {
 }
 
 export function createQuiz(songs: readonly Song[]): QuizState {
-  return { songs, index: 0, revealed: false };
+  return { songs, index: 0, revealed: [] };
 }
 
 export function currentSong(state: QuizState): Song {
   return state.songs[state.index];
 }
 
+/** 이 곡(기본: 지금 곡)의 정답을 이미 공개했는지 */
+export function isRevealed(state: QuizState, song: Song = currentSong(state)): boolean {
+  return state.revealed.includes(song.id);
+}
+
+export function revealedCount(state: QuizState): number {
+  return state.revealed.length;
+}
+
 /** 문제 재생 시작 지점(초) */
 export function startSeconds(song: Song): number {
   return song.startTime ?? 0;
 }
-
 /** 코러스 시작 지점이 정해져 있으면 그 값, 없으면 null */
 export function chorusSeconds(song: Song): number | null {
   return song.chorusStart ?? null;
@@ -78,23 +88,90 @@ export function hasNext(state: QuizState): boolean {
   return state.index < state.songs.length - 1;
 }
 
-/** 이전/다음 곡으로 옮긴다. 처음/끝에서는 그대로 두고, 곡이 바뀌면 정답은 다시 가린다. */
+/** 이전/다음 곡으로 옮긴다. 처음/끝에서는 그대로 둔다. 이미 공개한 곡은 계속 공개 상태다. */
 export function moveBy(state: QuizState, delta: 1 | -1): QuizState {
   const index = Math.min(Math.max(state.index + delta, 0), state.songs.length - 1);
-  if (index === state.index) return state;
-  return { ...state, index, revealed: false };
+  return index === state.index ? state : { ...state, index };
 }
 
+/** 지금 곡의 정답을 공개한다. 한 번 공개하면 초기화(resetQuiz)하기 전까지 계속 공개 상태다. */
 export function revealAnswer(state: QuizState): QuizState {
-  return state.revealed ? state : { ...state, revealed: true };
+  return isRevealed(state)
+    ? state
+    : { ...state, revealed: [...state.revealed, currentSong(state).id] };
 }
 
-/** Fisher–Yates 셔플. 원본은 바꾸지 않는다. 섞은 뒤에는 처음 곡부터 다시 시작한다. */
-export function shuffleQuiz(state: QuizState, random: () => number = Math.random): QuizState {
-  const songs = [...state.songs];
-  for (let i = songs.length - 1; i > 0; i--) {
+/** Fisher–Yates 셔플. 원본은 바꾸지 않는다. */
+function shuffled<T>(items: readonly T[], random: () => number): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
-    [songs[i], songs[j]] = [songs[j], songs[i]];
+    [result[i], result[j]] = [result[j], result[i]];
   }
-  return { songs, index: 0, revealed: false };
+  return result;
+}
+
+/** 곡 순서를 섞고 처음 곡으로 돌아간다. 이미 공개한 곡은 그대로 공개 상태로 둔다. */
+export function shuffleQuiz(state: QuizState, random: () => number = Math.random): QuizState {
+  return { ...state, songs: shuffled(state.songs, random), index: 0 };
+}
+
+/**
+ * 게임 초기화: 공개한 정답을 모두 다시 가리고 곡 순서를 한 번 섞어 처음 곡으로 돌아간다.
+ * 섞은 결과가 지금 순서와 똑같으면(운 나쁘게 같은 순서가 나오면) 앞의 두 곡을 맞바꿔 반드시 달라지게 한다.
+ */
+export function resetQuiz(state: QuizState, random: () => number = Math.random): QuizState {
+  let songs = shuffled(state.songs, random);
+  if (songs.length > 1 && songs.every((song, i) => song.id === state.songs[i].id)) {
+    songs = [songs[1], songs[0], ...songs.slice(2)];
+  }
+  return { songs, index: 0, revealed: [] };
+}
+
+/** 이 기기에 저장하는 진행 상태. 곡 정보는 data/songs.json 이 원본이라 id 만 저장한다 */
+type StoredQuiz = { order: string[]; index: number; revealed: string[] };
+
+export function serializeQuiz(state: QuizState): string {
+  const stored: StoredQuiz = {
+    order: state.songs.map((song) => song.id),
+    index: state.index,
+    revealed: [...state.revealed],
+  };
+  return JSON.stringify(stored);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+/**
+ * 저장된 진행 상태를 곡 목록에 맞춰 복원한다.
+ * 곡 목록이 바뀌었어도 안전하게: 없어진 곡은 버리고, 새로 생긴 곡은 순서 맨 뒤에 붙인다.
+ * 값이 없거나 손상되었으면 처음 상태(createQuiz)를 돌려준다.
+ */
+export function restoreQuiz(raw: string | null, songs: readonly Song[]): QuizState {
+  if (!raw) return createQuiz(songs);
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null) return createQuiz(songs);
+    const { order, index, revealed } = value as Record<string, unknown>;
+    if (!isStringArray(order) || !isStringArray(revealed) || typeof index !== "number")
+      return createQuiz(songs);
+
+    const byId = new Map(songs.map((song) => [song.id, song]));
+    const ordered: Song[] = [];
+    for (const id of order) {
+      const song = byId.get(id);
+      if (song && !ordered.includes(song)) ordered.push(song);
+    }
+    for (const song of songs) if (!ordered.includes(song)) ordered.push(song);
+
+    return {
+      songs: ordered,
+      index: Math.min(Math.max(Math.trunc(index), 0), ordered.length - 1),
+      revealed: [...new Set(revealed)].filter((id) => byId.has(id)),
+    };
+  } catch {
+    return createQuiz(songs);
+  }
 }

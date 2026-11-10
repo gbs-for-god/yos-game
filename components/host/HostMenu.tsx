@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { HostPinForm } from "@/components/host/HostPinForm";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -15,8 +15,11 @@ import {
 } from "@/lib/settings/client";
 import type { SiteSettings } from "@/lib/settings/shared";
 
-/** 사회자 전용 메뉴 (/host): 비밀번호를 확인한 뒤 사이트 전체 설정을 켜고 끈다 */
-export function HostMenu() {
+/**
+ * 사회자 전용 메뉴 (/host): 비밀번호를 확인한 뒤 사이트 전체 설정을 켜고 끈다.
+ * children 은 비밀번호를 확인한 뒤에만 보이는 게임별 관리 패널이다 (app/host/page.tsx 가 레지스트리에서 모아 넘긴다).
+ */
+export function HostMenu({ children }: { children?: ReactNode }) {
   const storedPin = useStoredValue(hostPinStore);
   if (storedPin === LOADING) {
     return <p className="text-center text-2xl text-zinc-500">불러오는 중...</p>;
@@ -24,10 +27,10 @@ export function HostMenu() {
   if (storedPin === null) {
     return <HostPinForm title="🔒 사회자 메뉴" />;
   }
-  return <Settings pin={storedPin} />;
+  return <Settings pin={storedPin}>{children}</Settings>;
 }
 
-function Settings({ pin }: { pin: string }) {
+function Settings({ pin, children }: { pin: string; children?: ReactNode }) {
   const [settings, setSettings] = useState<SiteSettings | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -107,6 +110,8 @@ function Settings({ pin }: { pin: string }) {
           {settings === undefined ? "..." : settings.allowRename ? "ON" : "OFF"}
         </button>
       </div>
+
+      {children}
     </section>
   );
 }

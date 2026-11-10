@@ -6,11 +6,14 @@ import { meta as numberDrawMeta } from "@/games/number-draw/meta";
 import ManitoMissionGame from "@/games/manito-mission/Game";
 import { meta as manitoMissionMeta } from "@/games/manito-mission/meta";
 import KpopQuizGame from "@/games/kpop-quiz/Game";
+import { HostPanel as KpopQuizHostPanel } from "@/games/kpop-quiz/HostPanel";
 import { meta as kpopQuizMeta } from "@/games/kpop-quiz/meta";
 
 export type GameEntry = {
   meta: GameMeta;
   Component: ComponentType;
+  /** (선택) 사회자 메뉴(/host)에 보여 줄 이 게임의 관리 패널 (예: 게임 초기화) */
+  HostPanel?: ComponentType;
 };
 
 /**
@@ -20,7 +23,7 @@ export type GameEntry = {
 export const games: GameEntry[] = [
   { meta: numberDrawMeta, Component: NumberDrawGame },
   { meta: manitoMissionMeta, Component: ManitoMissionGame },
-  { meta: kpopQuizMeta, Component: KpopQuizGame },
+  { meta: kpopQuizMeta, Component: KpopQuizGame, HostPanel: KpopQuizHostPanel },
 ];
 
 export function getGame(slug: string): GameEntry | undefined {

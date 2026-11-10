@@ -55,7 +55,7 @@ async function login(page: Page) {
   await page.goto("/games/kpop-quiz");
   await page.getByLabel("사회자 비밀번호").fill(HOST_PIN);
   await page.getByRole("button", { name: "들어가기" }).click();
-  await expect(page.getByTestId("progress")).toHaveText(`문제 1 / ${songs.length}`);
+  await expect(page.getByTestId("progress")).toContainText(`문제 1 / ${songs.length}`);
   await expect(page.getByRole("button", { name: "▶ 재생" })).toBeEnabled();
 }
 
@@ -170,22 +170,89 @@ test.describe("K-pop 노래 맞추기", () => {
     expect((await calls(page)).slice(-2)).toEqual([["seek", songs[1].chorusStart], ["play"]]);
   });
 
-  test("이전/다음 곡 이동은 새 곡을 준비하고 정답을 다시 가린다", async ({ page }) => {
+  test("한 번 공개한 정답은 곡을 옮기거나 새로고침해도 계속 공개 상태로 유지된다", async ({
+    page,
+  }) => {
     await login(page);
     await expect(page.getByRole("button", { name: "⏮ 이전 곡" })).toBeDisabled();
 
     await page.getByRole("button", { name: "🎉 정답 공개" }).click();
     await expect(page.getByTestId("answer-title")).toHaveText(songs[0].title);
+    await expect(page.getByTestId("progress")).toContainText("공개 1곡");
 
+    // 다른 곡은 공개하지 않았으면 가려진 채로, 그 곡의 영상이 준비된다
     await page.getByRole("button", { name: "다음 곡 ⏭" }).click();
-    await expect(page.getByTestId("progress")).toHaveText(`문제 2 / ${songs.length}`);
+    await expect(page.getByTestId("progress")).toContainText(`문제 2 / ${songs.length}`);
     await expect(page.getByTestId("blind-cover")).toBeVisible();
     await expect(page.getByTestId("answer-title")).toHaveCount(0);
     expect((await calls(page)).filter((c) => c[0] === "cue").at(-1)?.[1]).toBe(songs[1].youtubeId);
 
+    // 돌아오면 이미 공개한 곡은 계속 공개되어 있다
     await page.getByRole("button", { name: "⏮ 이전 곡" }).click();
-    await expect(page.getByTestId("progress")).toHaveText(`문제 1 / ${songs.length}`);
+    await expect(page.getByTestId("progress")).toContainText(`문제 1 / ${songs.length}`);
+    await expect(page.getByTestId("blind-cover")).toHaveCount(0);
+    await expect(page.getByTestId("answer-title")).toHaveText(songs[0].title);
+    await expect(page.getByRole("button", { name: "✅ 정답 공개됨" })).toBeDisabled();
+
+    // 새로고침(브라우저를 껐다 켜도)해도 공개 상태와 현재 곡이 그대로다
+    await page.getByRole("button", { name: "다음 곡 ⏭" }).click();
+    await page.getByRole("button", { name: "🎉 정답 공개" }).click();
+    await page.reload();
+    await expect(page.getByTestId("progress")).toContainText(`문제 2 / ${songs.length}`);
+    await expect(page.getByTestId("progress")).toContainText("공개 2곡");
+    await expect(page.getByTestId("answer-title")).toHaveText(songs[1].title);
+    await page.getByRole("button", { name: "⏮ 이전 곡" }).click();
+    await expect(page.getByTestId("answer-title")).toHaveText(songs[0].title);
+  });
+
+  test("사회자 메뉴의 게임 초기화는 공개한 정답을 모두 가리고 곡 순서를 섞는다", async ({
+    page,
+  }) => {
+    await login(page);
+    await page.getByRole("button", { name: "🎉 정답 공개" }).click();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("progress")).toContainText("공개 2곡");
+
+    const readState = () =>
+      page.evaluate(
+        () =>
+          JSON.parse(window.localStorage.getItem("yos-game:kpop-quiz:state") ?? "null") as {
+            order: string[];
+            index: number;
+            revealed: string[];
+          },
+      );
+    const before = await readState();
+    expect(before.revealed).toHaveLength(2);
+
+    // 사회자 메뉴에서 초기화 (비밀번호는 이 탭에 기억되어 있어 바로 열린다)
+    await page.goto("/host");
+    await expect(page.getByTestId("kpop-host-status")).toHaveText(
+      `전체 ${songs.length}곡 · 공개한 곡 2곡`,
+    );
+    await page.getByRole("button", { name: "K-pop 노래 맞추기 초기화" }).click();
+    await expect(page.getByRole("status")).toContainText("공개했던 2곡을 다시 가리고");
+    await expect(page.getByTestId("kpop-host-status")).toHaveText(
+      `전체 ${songs.length}곡 · 공개한 곡 0곡`,
+    );
+
+    // 같은 곡들이 다른 순서로, 처음 곡부터, 공개 없이 저장된다
+    const after = await readState();
+    expect(after.revealed).toEqual([]);
+    expect(after.index).toBe(0);
+    expect([...after.order].sort()).toEqual([...before.order].sort());
+    expect(after.order).not.toEqual(before.order);
+
+    // 게임으로 돌아가면 모두 가려진 채 처음 곡이다
+    await page.goto("/games/kpop-quiz");
+    await expect(page.getByTestId("progress")).toContainText(`문제 1 / ${songs.length}`);
+    await expect(page.getByTestId("progress")).toContainText("공개 0곡");
     await expect(page.getByTestId("blind-cover")).toBeVisible();
+    await expect(page.getByTestId("answer-title")).toHaveCount(0);
+    expect((await calls(page)).filter((c) => c[0] === "cue").at(-1)?.[1]).toBe(
+      songs.find((song) => song.id === after.order[0])?.youtubeId,
+    );
   });
 
   test("키보드 단축키: Space 재생/정지, Enter 정답 공개, 방향키 이전/다음 곡", async ({ page }) => {
@@ -197,14 +264,19 @@ test.describe("K-pop 노래 맞추기", () => {
     await expect(page.getByRole("button", { name: "▶ 재생" })).toBeVisible();
 
     await page.keyboard.press("ArrowRight");
-    await expect(page.getByTestId("progress")).toHaveText(`문제 2 / ${songs.length}`);
+    await expect(page.getByTestId("progress")).toContainText(`문제 2 / ${songs.length}`);
 
     await page.keyboard.press("Enter");
     await expect(page.getByTestId("answer-title")).toHaveText(songs[1].title);
 
     await page.keyboard.press("ArrowLeft");
-    await expect(page.getByTestId("progress")).toHaveText(`문제 1 / ${songs.length}`);
+    await expect(page.getByTestId("progress")).toContainText(`문제 1 / ${songs.length}`);
     await expect(page.getByTestId("answer-title")).toHaveCount(0);
+
+    // 공개한 곡으로 돌아오면 계속 공개되어 있다
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByTestId("answer-title")).toHaveText(songs[1].title);
+    await page.keyboard.press("ArrowLeft");
 
     // 단축키는 포커스된 버튼을 따로 누르지 않는다 (Space 로 재생/정지만 일어난다)
     await page.getByRole("button", { name: "🎉 정답 공개" }).focus();
@@ -213,15 +285,13 @@ test.describe("K-pop 노래 맞추기", () => {
     await expect(page.getByTestId("answer-title")).toHaveCount(0);
   });
 
-  test("순서 섞기는 처음 곡으로 돌아가 정답을 가리고, 같은 곡들을 모두 유지한다", async ({
-    page,
-  }) => {
+  test("순서 섞기는 처음 곡으로 돌아가고 같은 곡들을 모두 유지한다", async ({ page }) => {
     await login(page);
     await page.getByRole("button", { name: "다음 곡 ⏭" }).click();
-    await page.getByRole("button", { name: "🎉 정답 공개" }).click();
+    await expect(page.getByTestId("progress")).toContainText(`문제 2 / ${songs.length}`);
 
     await page.getByRole("button", { name: "🔀 순서 섞기" }).click();
-    await expect(page.getByTestId("progress")).toHaveText(`문제 1 / ${songs.length}`);
+    await expect(page.getByTestId("progress")).toContainText(`문제 1 / ${songs.length}`);
     await expect(page.getByTestId("blind-cover")).toBeVisible();
 
     // 모든 곡을 한 번씩 지나가며 중복 없이 정답이 나온다

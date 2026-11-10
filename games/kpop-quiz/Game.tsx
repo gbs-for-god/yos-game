@@ -1,30 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { HostPinForm } from "@/components/host/HostPinForm";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { LOADING, useStoredValue } from "@/lib/hooks/useStoredValue";
 import { hostPinStore, useVerifiedHostPin } from "@/lib/host/client";
-import songsData from "./data/songs.json";
 import {
   CHORUS_SECONDS,
   chorusSeconds,
-  createQuiz,
   currentSong,
   hasNext,
   hasPrev,
+  isRevealed,
   moveBy,
+  restoreQuiz,
   revealAnswer,
+  revealedCount,
   shuffleQuiz,
   SNIPPET_SECONDS,
-  validateSongs,
-  type Song,
+  type QuizState,
 } from "./logic";
+import { SONGS, SONGS_ERROR } from "./songs";
 import { Stage } from "./Stage";
+import { quizStore, updateQuiz } from "./storage";
 import { useSongPlayer } from "./useSongPlayer";
-
-const SONGS: readonly Song[] = songsData;
-const SONGS_ERROR = validateSongs(SONGS);
 
 /** 사회자가 로그인해야만 진행할 수 있다. 로그인 전에는 곡 정보가 화면에 전혀 나오지 않는다 */
 export default function KpopQuizGame() {
@@ -59,17 +59,26 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
+/** 저장된 진행 상태(곡 순서·현재 곡·공개한 곡)를 읽어 온 뒤에 대시보드를 그린다 */
 function Dashboard() {
-  const [quiz, setQuiz] = useState(() => createQuiz(SONGS));
+  const raw = useStoredValue(quizStore);
+  const quiz = useMemo(() => (raw === LOADING ? null : restoreQuiz(raw, SONGS)), [raw]);
+  if (quiz === null) return <p className="m-auto text-2xl text-zinc-400">불러오는 중...</p>;
+  return <Board quiz={quiz} />;
+}
+
+function Board({ quiz }: { quiz: QuizState }) {
   const song = currentSong(quiz);
+  const revealed = isRevealed(quiz);
   const { containerRef, status, message, snippet, togglePlay, playSnippet, playChorus, playFull } =
     useSongPlayer(song);
 
   const prevEnabled = hasPrev(quiz);
   const nextEnabled = hasNext(quiz);
-  const reveal = () => setQuiz(revealAnswer);
-  const prev = () => setQuiz((q) => moveBy(q, -1));
-  const next = () => setQuiz((q) => moveBy(q, 1));
+  // 상태 변경은 항상 저장소의 최신 값을 기준으로 한다 (단축키 핸들러가 오래된 화면 값을 쥐지 않도록)
+  const reveal = () => updateQuiz(revealAnswer);
+  const prev = () => updateQuiz((q) => moveBy(q, -1));
+  const next = () => updateQuiz((q) => moveBy(q, 1));
 
   // 단축키: Space 재생/정지, Enter 정답 공개, ←/→ 이전/다음 곡
   useEffect(() => {
@@ -114,9 +123,10 @@ function Dashboard() {
       <div className="flex w-full flex-wrap items-center justify-between gap-4">
         <p className="text-3xl font-black" data-testid="progress">
           문제 {quiz.index + 1} / {quiz.songs.length}
+          <span className="ml-4 text-xl font-bold text-zinc-400">공개 {revealedCount(quiz)}곡</span>
         </p>
         <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={() => setQuiz((q) => shuffleQuiz(q))}>
+          <Button variant="secondary" onClick={() => updateQuiz((q) => shuffleQuiz(q))}>
             🔀 순서 섞기
           </Button>
           <Button variant="secondary" onClick={() => hostPinStore.save(null)}>
@@ -130,14 +140,14 @@ function Dashboard() {
         <div className="flex flex-col items-center gap-6">
           <Stage
             containerRef={containerRef}
-            revealed={quiz.revealed}
+            revealed={revealed}
             status={status}
             message={message}
             snippet={snippet}
           />
 
           <div className="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
-            {quiz.revealed ? (
+            {revealed ? (
               <>
                 <p data-testid="answer-artist" className="text-4xl font-bold text-indigo-300">
                   {song.artist}
@@ -180,8 +190,8 @@ function Dashboard() {
             🎼 전체 재생
           </BigButton>
 
-          <BigButton onClick={reveal} disabled={quiz.revealed} tone="accent">
-            {quiz.revealed ? "✅ 정답 공개됨" : "🎉 정답 공개"}
+          <BigButton onClick={reveal} disabled={revealed} tone="accent">
+            {revealed ? "✅ 정답 공개됨" : "🎉 정답 공개"}
           </BigButton>
 
           <p className="text-lg leading-loose text-zinc-400">

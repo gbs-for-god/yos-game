@@ -20,13 +20,13 @@ yos-game/
 │   ├── globals.css           # Tailwind 진입점 + 테마 토큰
 │   ├── games/[slug]/page.tsx # 게임 공통 셸: 헤더 + 레지스트리에서 찾은 게임 렌더
 │   ├── join/page.tsx         # 참가자명 입력·등록 (등록 전에는 이 화면만 볼 수 있음)
-│   ├── host/page.tsx         # 사회자 전용 메뉴 (사이트 설정 on/off)
+│   ├── host/page.tsx         # 사회자 전용 메뉴 (사이트 설정 on/off + 게임별 관리 패널)
 │   ├── api/settings/         # 사이트 설정 API → lib/settings/server/ 호출
 │   ├── api/participants/     # 참여자 등록 API → lib/participants/server/ 호출
 │   └── api/<slug>/…/route.ts # (서버 상태 게임만) 얇은 Route Handler → games/<slug>/server/ 호출
 ├── games/                    # 게임 모음 (기능 단위 폴더)
 │   ├── types.ts              # GameMeta 타입
-│   ├── registry.ts           # 게임 등록부 (SSOT)
+│   ├── registry.ts           # 게임 등록부 (SSOT). 선택 필드 HostPanel = /host 에 끼워 넣을 관리 패널
 │   └── <slug>/               # 게임 1개 = 폴더 1개
 │       ├── meta.ts           # 제목·설명·인원 등 메타데이터
 │       ├── logic.ts          # 순수 함수: 규칙, 상태 전이 (React 의존 X)
