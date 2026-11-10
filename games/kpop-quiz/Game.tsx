@@ -23,7 +23,7 @@ import {
 } from "./logic";
 import { SONGS, SONGS_ERROR } from "./songs";
 import { Stage } from "./Stage";
-import { quizStore, updateQuiz } from "./storage";
+import { loadQuiz, quizStore, updateQuiz } from "./storage";
 import { useSongPlayer } from "./useSongPlayer";
 
 /** 사회자가 로그인해야만 진행할 수 있다. 로그인 전에는 곡 정보가 화면에 전혀 나오지 않는다 */
@@ -76,7 +76,13 @@ function Board({ quiz }: { quiz: QuizState }) {
   const prevEnabled = hasPrev(quiz);
   const nextEnabled = hasNext(quiz);
   // 상태 변경은 항상 저장소의 최신 값을 기준으로 한다 (단축키 핸들러가 오래된 화면 값을 쥐지 않도록)
-  const reveal = () => updateQuiz(revealAnswer);
+  // 정답 공개(버튼·Enter): 처음 공개할 때만 코러스 구간을 바로 들려준다. 이미 공개한 곡은 다시 재생하지 않는다.
+  // 단축키 핸들러가 오래된 화면 값을 쥐고 있을 수 있어 공개 여부는 저장소의 최신 값으로 확인한다.
+  const reveal = () => {
+    if (isRevealed(loadQuiz())) return;
+    updateQuiz(revealAnswer);
+    playChorus();
+  };
   const prev = () => updateQuiz((q) => moveBy(q, -1));
   const next = () => updateQuiz((q) => moveBy(q, 1));
 

@@ -170,6 +170,37 @@ test.describe("K-pop 노래 맞추기", () => {
     expect((await calls(page)).slice(-2)).toEqual([["seek", songs[1].chorusStart], ["play"]]);
   });
 
+  test("정답 공개를 누르면 코러스 15초를 바로 들려주고, 이미 공개한 곡은 다시 재생하지 않는다", async ({
+    page,
+  }) => {
+    await login(page);
+    const reveal = page.getByRole("button", { name: "🎉 정답 공개" });
+
+    await reveal.click();
+    await expect(page.getByTestId("answer-title")).toHaveText(songs[0].title);
+    // 공개와 동시에 문제 시작 지점이 아닌 코러스 지점으로 이동해 재생한다
+    expect((await calls(page)).slice(-2)).toEqual([["seek", songs[0].chorusStart], ["play"]]);
+    await expect(page.getByRole("button", { name: "⏸ 일시정지" })).toBeVisible();
+
+    // 15초가 지나면 멈춘다
+    await page.clock.runFor(10_000);
+    expect(await names(page)).not.toContain("pause");
+    await page.clock.runFor(6000);
+    expect((await names(page)).filter((n) => n === "pause")).toHaveLength(1);
+
+    // 이미 공개한 곡에서 Enter 를 눌러도 다시 재생하지 않는다
+    const countBefore = (await calls(page)).length;
+    await page.keyboard.press("Enter");
+    expect((await calls(page)).length).toBe(countBefore);
+
+    // 다음 곡을 Enter 로 공개해도 그 곡의 코러스를 재생한다 (이동만으로는 재생하지 않는다)
+    await page.keyboard.press("ArrowRight");
+    expect((await calls(page)).slice(-1)[0][0]).toBe("cue");
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("answer-title")).toHaveText(songs[1].title);
+    expect((await calls(page)).slice(-2)).toEqual([["seek", songs[1].chorusStart], ["play"]]);
+  });
+
   test("한 번 공개한 정답은 곡을 옮기거나 새로고침해도 계속 공개 상태로 유지된다", async ({
     page,
   }) => {
