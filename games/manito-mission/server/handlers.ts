@@ -9,7 +9,6 @@
  * - assignments: 올바른 사회자 비밀번호(x-host-pin 헤더)를 보낸 경우에만 전체 배정표
  */
 
-import { MEMBERS, validateMembers } from "@/lib/members";
 import { getParticipantStore } from "@/lib/participants/server/store";
 import { PARTICIPANT_TOKEN_HEADER } from "@/lib/participants/shared";
 import { checkHostPin, errorResponse, jsonResponse } from "@/lib/server/hostPin";
@@ -22,6 +21,7 @@ import {
   revealNext,
   startReveal,
   toPublicSession,
+  validateMemberNames,
   type Assignment,
   type Mission,
   type PublicSession,
@@ -101,18 +101,14 @@ export async function postAction(request: Request): Promise<Response> {
 
     case "start": {
       if (state.session) break; // 이미 시작된 게임은 그대로 둔다 (두 번 눌러도 안전)
-      const invalid = validateMembers(MEMBERS);
+      const invalid = await dealNewSession(store, requester);
       if (invalid) return errorResponse(invalid, 400);
-      await store.clearViewed();
-      await store.writeSession(createSession(MEMBERS, MISSIONS));
       break;
     }
 
     case "redrawAll": {
-      const invalid = validateMembers(MEMBERS);
+      const invalid = await dealNewSession(store, requester);
       if (invalid) return errorResponse(invalid, 400);
-      await store.clearViewed();
-      await store.writeSession(createSession(MEMBERS, MISSIONS));
       break;
     }
 
@@ -121,7 +117,7 @@ export async function postAction(request: Request): Promise<Response> {
       if (state.session.phase === "reveal")
         return errorResponse("공개가 시작된 뒤에는 바꿀 수 없어요.", 409);
       if (!state.session.assignments[action.name])
-        return errorResponse("명단에 없는 이름이에요.", 400);
+        return errorResponse("이번 게임에 없는 이름이에요.", 400);
       await store.writeSession(redrawMissions(state.session, action.name, MISSIONS));
       await store.unmarkViewed(action.name);
       break;
@@ -143,13 +139,29 @@ export async function postAction(request: Request): Promise<Response> {
       if (!state.session) return errorResponse("아직 게임이 시작되지 않았어요.", 409);
       if (!requester.me) return errorResponse("먼저 참여자 등록을 해 주세요.", 401);
       if (!state.session.assignments[requester.me])
-        return errorResponse("명단에 없는 이름이에요.", 400);
+        return errorResponse("이번 게임에 없는 이름이에요.", 400);
       await store.markViewed(requester.me);
       break;
     }
   }
 
   return buildResponse(await store.read(), requester);
+}
+
+/**
+ * 지금 등록된 참가자 전체로 마니또·미션을 새로 뽑는다. 요청한 기기(사회자)의 이름은 공개 순서 맨 마지막.
+ * 인원이 모자라면 아무것도 바꾸지 않고 안내 메시지를 돌려준다.
+ */
+async function dealNewSession(
+  store: ReturnType<typeof getSessionStore>,
+  requester: Requester,
+): Promise<string | null> {
+  const names = Object.keys(requester.claims);
+  const invalid = validateMemberNames(names);
+  if (invalid) return invalid;
+  await store.clearViewed();
+  await store.writeSession(createSession(names, requester.me ?? null, MISSIONS));
+  return null;
 }
 
 /** 세션과 확인 기록을 모두 지워 시작 전 상태로 되돌린다 (사회자 전용). */

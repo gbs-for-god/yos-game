@@ -9,7 +9,7 @@ type HostScreenProps = {
   /** 기기가 등록된 이름 목록 */
   registered: string[];
   missions: readonly Mission[];
-  /** 저장된 명단이 현재 members.json 과 다른지 */
+  /** 게임 시작 뒤 참가자 등록이 바뀌었는지 (새로 등록했거나 해제된 사람이 있음) */
   membersChanged: boolean;
   /** 참여자가 휴대폰으로 접속할 주소 (화면에 크게 보여 준다) */
   participantUrl: string | null;
@@ -52,14 +52,16 @@ export function HostScreen({
       {participantUrl && (
         <p className="rounded-2xl bg-indigo-50 px-6 py-4 text-xl text-indigo-900">
           📱 참여자 등록 주소: <span className="font-bold select-all">{participantUrl}</span>
-          <span className="ml-2 text-zinc-600">(휴대폰에서 자기 이름을 선택하면 등록됩니다)</span>
+          <span className="ml-2 text-zinc-600">
+            (휴대폰으로 접속해 참가자명을 입력하면 등록됩니다)
+          </span>
         </p>
       )}
 
       {membersChanged && (
         <p role="alert" className="rounded-2xl bg-red-50 px-6 py-4 text-2xl font-bold text-red-700">
-          명단(data/members.json)이 저장된 게임과 달라요. &quot;전체 다시 뽑기&quot;를 누르면 새
-          명단으로 시작합니다.
+          게임을 시작한 뒤 참가자 등록이 바뀌었어요. &quot;전체 다시 뽑기&quot;를 누르면 지금 등록된
+          사람들로 새로 뽑습니다.
         </p>
       )}
 

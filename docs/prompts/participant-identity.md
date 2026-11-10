@@ -38,3 +38,62 @@
 - `pnpm verify` 통과 (E2E 16개: 등록 3, 마니또 8, 홈 3, 번호 뽑기 2)
 - 등록 → 새로고침/다른 페이지 이동 후 유지, 다른 기기의 중복 등록 차단, 사회자 해제 후 재등록, 이름 변경 시 이전 이름 해제를 E2E 로 확인
 - 1920×1080 노트북 + 390×844 휴대폰 스크린샷으로 `/join`과 참여자 화면 확인
+
+## 2026-11-10 — 기존 명단 제거 + 메인 화면 전에 참가자명 입력
+
+### 요청 프롬프트
+
+> 기존 정보의 참여자는 제거하고, 참여자가 메인 화면에 접속하기 전에 참가자명을 작성하게 해
+
+### 구현 결정
+
+- **명단 삭제**: `lib/members/`(members.json·헬퍼)를 지웠다. 참가자가 직접 입력한 이름이 곧 명단이다. 사회자 비밀번호 기본값은 `lib/server/hostPin.ts`의 `DEFAULT_HOST_PIN`("0000")으로 옮겼고 운영은 `HOST_PIN` 환경 변수로 덮어쓴다.
+- **직접 입력 + 검증**: `/join`은 이름 선택 목록 대신 입력창이다. 서버(`registerParticipant`)가 `normalizeName`(앞뒤 공백 제거, 연속 공백 하나로)·`validateName`(비어 있음/12자 초과 거부)으로 검증한다. 이미 쓰는 이름이면 409.
+- **등록 전 접근 차단**: 루트 레이아웃에 `ParticipantGate`를 둬, 신원이 없는 기기는 `/`를 포함한 모든 주소에서 `/join?next=<원래 주소>`로 보낸다. 신원이 localStorage 에만 있어 브라우저에서 판단한다. `ParticipantBar`는 등록된 경우에만 표시한다.
+- **이름 변경 순서**: 새 이름을 먼저 등록하고 성공하면 이전 이름을 푼다(실패 시 이전 이름 유지). 서버 응답의 `me`는 두 이름이 같은 토큰을 가진 순간 이전 이름을 돌려줄 수 있어 신원 저장에는 입력값을 쓴다.
+- **마니또 멤버 = 시작 시점의 등록자 전체**: `createSession(names, hostName, missions)`로 바뀌었다. 시작한 기기의 이름이 공개 순서 맨 마지막(사회자), 나머지는 가나다순. 최소 2명 미만이면 시작 버튼 비활성 + 서버도 400. 시작 뒤 등록·해제가 있으면 사회자 화면에 경고하고, 늦게 등록한 사람은 "이번 배정에 없음" 안내를 받는다. 전체 다시 뽑기로 반영한다.
+- **E2E 구성**: 마니또 멤버가 "등록자 전체"라서 `join`·`manito-mission` spec 이 동시에 돌면 인원이 달라진다. `playwright.config.ts`를 프로젝트로 나눠 `join → manito-mission` 순서로 실행하고 홈·번호 뽑기는 병렬로 둔다. 공용 도우미는 `e2e/helpers.ts`(`seedIdentity`, `registerViaApi`, `fillJoinForm`).
+
+### 변경 파일
+
+- 삭제: `lib/members/index.ts`, `lib/members/members.json`
+- `lib/participants/shared.ts`(이름 검증), `lib/participants/server/handlers.ts`, `lib/server/hostPin.ts`
+- `components/participant/ParticipantGate.tsx`(신규), `JoinScreen.tsx`, `ParticipantBar.tsx`, `app/layout.tsx`, `app/join/page.tsx`
+- `games/manito-mission/{logic.ts,Game.tsx,HostScreen.tsx,ParticipantScreen.tsx,server/handlers.ts,README.md}`
+- `e2e/{helpers.ts(신규),join,manito-mission,home,number-draw}.spec.ts`, `playwright.config.ts`
+- `AGENTS.md`(규칙 11), `docs/{ARCHITECTURE,TESTING,ADDING_A_GAME}.md`, `.env.example`
+
+### 검증
+
+- `pnpm check` 통과, `pnpm test:e2e` 19개 통과 (등록 5, 마니또 9, 홈 3, 번호 뽑기 2)
+- 배포 시 주의: 이미 서버(Redis)에 남은 이전 참가자 등록·마니또 세션은 명단 이름 기준이므로, 배포 직후 사회자가 마니또 "전체 다시 뽑기"(또는 세션 초기화)와 참가자 초기화를 한 번 해 주는 것이 안전하다.
+
+## 2026-11-10 — 이름 변경은 사회자가 켜야 가능 + 사회자 전용 메뉴
+
+### 요청 프롬프트
+
+> 1. 상단에 이름을 변경할 수 있는 기능은 사회자가 기능을 on 해야 작동할 수 있도록 한다.
+> 2. 이름 변경 가능 on/off 기능은 사회자 전용 메뉴를 만들어 넣는다
+
+### 구현 결정
+
+- **기본은 꺼짐**: 설정 `allowRename`(기본 false)이 꺼져 있으면 상단 "변경" 링크가 없고, `/join`에 이미 등록된 기기로 들어가면 "이름은 바꿀 수 없어요" 안내만 보인다.
+- **서버에서도 막음**: 링크만 숨기면 API 로 우회할 수 있어, 이미 이름이 있는 토큰이 다른 이름을 등록(POST)하거나 참가자가 스스로 이름을 푸는(DELETE) 요청은 설정이 꺼져 있으면 403. 사회자 비밀번호로 하는 해제와 최초 등록은 영향 없음.
+- **사회자 전용 메뉴 `/host`**: 사이트 공통 페이지로 추가(규칙 3의 예외 목록에 `/host` 포함). 비밀번호 확인 후 ON/OFF 스위치를 보여 주고 "잠그기"로 다시 잠근다. 상단 띠의 "🔒 사회자 메뉴" 링크로 들어간다(등록 후에만 보임).
+- **설정 저장**: `lib/settings/`(shared·client·server). 읽기는 누구나, 쓰기(`PUT /api/settings`)는 `x-host-pin` 필요. Redis 문자열 `yos-game:settings`, 없으면 메모리. 손상되거나 없는 값은 기본값(꺼짐).
+- **설정 반영 시점**: 상단 띠가 페이지를 옮길 때마다 설정을 다시 읽는다(별도 폴링 없음 → Redis 사용량 증가 미미).
+- **사회자 비밀번호 공유**: 탭 저장소를 `lib/host/client.ts`로 올려 `/host`와 마니또 사회자 화면이 같은 값을 쓴다(한 번만 입력). 이전에 마니또가 쓰던 키(`yos-game:manito-mission:host-pin`)는 새 키로 바뀌었다.
+
+### 변경 파일
+
+- `lib/settings/{shared,client}.ts`, `lib/settings/server/{store,handlers}.ts`, `app/api/settings/route.ts`
+- `lib/host/client.ts`, `components/host/HostMenu.tsx`, `app/host/page.tsx`
+- `components/participant/{ParticipantBar,JoinScreen}.tsx`, `lib/participants/server/handlers.ts`
+- `games/manito-mission/client.ts`(비밀번호 저장소 공유)
+- `e2e/host.spec.ts`(신규), `e2e/join.spec.ts`, `e2e/helpers.ts`, `playwright.config.ts`(join → host-menu → manito 순서)
+- `AGENTS.md`(규칙 3), `docs/ARCHITECTURE.md`, `docs/TESTING.md`
+
+### 검증
+
+- `pnpm check` 통과, `pnpm test:e2e` 22개 통과 (등록 6, 사회자 메뉴 2, 마니또 9, 홈 3, 번호 뽑기 2)
+- 꺼짐 상태: 변경 링크 없음, `/join` 안내, 화면 우회 POST 403 확인. 켬: 다른 기기에서도 링크가 보이고 이름 변경 성공. 비밀번호 없이/틀린 비밀번호로 PUT 401 확인.

@@ -1,4 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { randomName, seedIdentity } from "./helpers";
+
+// 참가자명을 등록해야 화면을 볼 수 있으므로 이미 등록한 기기로 시작한다
+test.beforeEach(async ({ context }) => {
+  await seedIdentity(context, { name: randomName(), token: crypto.randomUUID() });
+});
 
 test("홈 화면에 등록된 게임 목록이 보인다", async ({ page }) => {
   await page.goto("/");

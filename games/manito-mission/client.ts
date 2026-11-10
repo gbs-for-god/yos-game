@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createStorageStore } from "@/lib/hooks/useStoredValue";
+import { hostPinStore } from "@/lib/host/client";
 import { HOST_PIN_HEADER, PARTICIPANT_TOKEN_HEADER } from "@/lib/participants/shared";
 import type { Action } from "./logic";
 import type { StateResponse } from "./server/handlers";
@@ -18,8 +18,8 @@ export const POLL_INTERVAL_MS = 10_000;
 /** 공개 단계: 참여자 휴대폰이 프로젝터 공개를 더 빨리 따라오도록 */
 export const REVEAL_POLL_INTERVAL_MS = 5_000;
 
-/** 사회자 비밀번호는 이 탭(sessionStorage)에만 기억한다. 공개 중 새로고침해도 다시 묻지 않기 위한 것 */
-export const hostPinStore = createStorageStore("session", "yos-game:manito-mission:host-pin");
+/** 사회자 비밀번호는 이 탭(sessionStorage)에만 기억한다. /host 메뉴와 공유하므로 한 번만 입력하면 된다 */
+export { hostPinStore };
 
 export class ApiError extends Error {
   constructor(

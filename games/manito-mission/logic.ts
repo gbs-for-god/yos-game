@@ -3,13 +3,12 @@
  * React/브라우저/서버 API에 의존하지 않도록 유지한다 (UI는 화면 컴포넌트, 저장은 server/ 가 담당).
  *
  * 용어
- * - 멤버(member): 게임에 참여하는 모든 사람 = 사회자 1명 + 참여자 여러 명 (명단은 lib/members)
+ * - 멤버(member): 게임에 참여하는 모든 사람 = 게임을 시작할 때 참가자명을 등록해 둔 사람 전체
+ *   (사회자도 노트북에서 참가자로 등록했으면 멤버가 된다. 미리 정한 명단은 없다)
  * - 마니또(manito): 내가 몰래 섬겨야 하는 상대. 모든 멤버가 서로 다른 한 사람을 마니또로 갖는다
  * - 세션(session): 한 번의 게임 전체 배정. 서버(Redis)에 저장되어 모든 기기가 같은 세션을 본다
  * - 확인(viewed): 멤버가 자기 결과를 봤는지. 세션과 별도로 저장해 여러 기기가 동시에 기록해도 안전하다
  */
-
-import { listMemberNames, type Members } from "@/lib/members";
 
 export type Mission = {
   id: string;
@@ -33,8 +32,9 @@ export type Phase = "playing" | "reveal";
 export type Session = {
   version: 2;
   createdAt: number;
-  hostName: string;
-  /** 사회자 포함 전체 멤버 이름. 공개 순서로도 쓰인다 (사회자가 맨 마지막) */
+  /** 게임을 시작한 기기에 등록된 이름 (그 기기가 등록되어 있지 않았으면 null) */
+  hostName: string | null;
+  /** 전체 멤버 이름. 공개 순서로도 쓰인다 (가나다순, 사회자가 맨 마지막) */
   memberNames: string[];
   assignments: Record<string, Assignment>;
   phase: Phase;
@@ -48,7 +48,7 @@ export type ViewedMap = Record<string, boolean>;
 /** 모든 기기(참여자 휴대폰 포함)에 내려줘도 되는 정보. 남의 마니또는 공개된 것만 포함한다 */
 export type PublicSession = {
   createdAt: number;
-  hostName: string;
+  hostName: string | null;
   memberNames: string[];
   phase: Phase;
   revealedCount: number;
@@ -153,12 +153,40 @@ export type CreateSessionOptions = {
   now?: () => number;
 };
 
+export const MIN_MEMBERS = 2;
+
+/** 공개 순서: 가나다순, 사회자는 맨 마지막. 사회자가 멤버가 아니면 hostName 은 null 로 정리한다 */
+export function orderMembers(
+  names: readonly string[],
+  hostName: string | null,
+): { memberNames: string[]; hostName: string | null } {
+  const host = hostName !== null && names.includes(hostName) ? hostName : null;
+  const others = [...new Set(names)]
+    .filter((name) => name !== host)
+    .sort((a, b) => a.localeCompare(b, "ko"));
+  return { memberNames: host === null ? others : [...others, host], hostName: host };
+}
+
+/** 게임을 시작할 수 있는 인원인지 확인한다. 문제가 없으면 null, 있으면 사용자에게 보여줄 메시지. */
+export function validateMemberNames(names: readonly string[]): string | null {
+  if (new Set(names).size < MIN_MEMBERS)
+    return `게임을 하려면 참가자가 최소 ${MIN_MEMBERS}명 등록되어 있어야 해요.`;
+  return null;
+}
+
+/**
+ * 등록된 참가자 이름으로 새 세션을 만든다.
+ * @param names 지금 등록된 참가자 이름 전체
+ * @param hostName 게임을 시작한 기기의 이름 (공개 순서 맨 마지막). 없으면 null
+ */
 export function createSession(
-  members: Members,
+  names: readonly string[],
+  hostName: string | null,
   missions: readonly Mission[],
   { random = Math.random, now = Date.now }: CreateSessionOptions = {},
 ): Session {
-  const memberNames = listMemberNames(members);
+  const ordered = orderMembers(names, hostName);
+  const memberNames = ordered.memberNames;
   const manitos = assignManitos(memberNames, random);
   const dealt = dealMissions(memberNames, missions, MISSIONS_PER_MEMBER, random);
 
@@ -170,7 +198,7 @@ export function createSession(
   return {
     version: 2,
     createdAt: now(),
-    hostName: members.host,
+    hostName: ordered.hostName,
     memberNames,
     assignments,
     phase: "playing",
@@ -213,16 +241,18 @@ export function isRevealComplete(
   return session.phase === "reveal" && session.revealedCount >= session.memberNames.length;
 }
 
-/** 저장된 세션의 명단이 현재 members.json 과 같은지 확인한다 (명단 수정 후 다시 뽑기 안내용). */
+/**
+ * 저장된 세션의 멤버가 지금 등록된 참가자와 같은지 확인한다 (순서는 무시).
+ * 게임 시작 뒤에 새로 등록하거나 등록을 해제한 사람이 있으면 false → 사회자에게 다시 뽑기를 안내한다.
+ */
 export function hasSameMembers(
-  session: Pick<Session, "hostName" | "memberNames">,
-  members: Members,
+  session: Pick<Session, "memberNames">,
+  registered: readonly string[],
 ) {
-  const current = listMemberNames(members);
+  const current = new Set(registered);
   return (
-    session.hostName === members.host &&
-    session.memberNames.length === current.length &&
-    session.memberNames.every((name, i) => name === current[i])
+    session.memberNames.length === current.size &&
+    session.memberNames.every((name) => current.has(name))
   );
 }
 
@@ -258,7 +288,8 @@ export function parseSession(raw: unknown): Session | null {
   try {
     const value: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
     if (!isRecord(value) || value.version !== 2) return null;
-    if (typeof value.hostName !== "string" || !Array.isArray(value.memberNames)) return null;
+    if (typeof value.hostName !== "string" && value.hostName !== null) return null;
+    if (!Array.isArray(value.memberNames)) return null;
     if (!isRecord(value.assignments)) return null;
     if (value.phase !== "playing" && value.phase !== "reveal") return null;
     if (typeof value.revealedCount !== "number" || typeof value.createdAt !== "number") return null;

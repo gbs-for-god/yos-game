@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { JoinScreen } from "@/components/participant/JoinScreen";
 
-export const metadata: Metadata = { title: "참여자 등록 | 교회 레크레이션" };
+export const metadata: Metadata = { title: "참가자 등록 | 교회 레크레이션" };
 
 export default function JoinPage() {
   return (

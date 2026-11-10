@@ -4,13 +4,12 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { LOADING, useStoredValue } from "@/lib/hooks/useStoredValue";
-import { listMemberNames, MEMBERS } from "@/lib/members";
 import { releaseParticipantByHost, useParticipantIdentity } from "@/lib/participants/client";
 import { hostPinStore, POLL_INTERVAL_MS, REVEAL_POLL_INTERVAL_MS, usePolledState } from "./client";
 import missionsData from "./data/missions.json";
 import { HostGate } from "./HostGate";
 import { HostScreen } from "./HostScreen";
-import { hasSameMembers, type Mission, type PublicSession } from "./logic";
+import { hasSameMembers, MIN_MEMBERS, type Mission, type PublicSession } from "./logic";
 import { ParticipantScreen } from "./ParticipantScreen";
 import { RevealScreen } from "./RevealScreen";
 
@@ -80,6 +79,7 @@ export default function ManitoMissionGame() {
     screen = (
       <StartScreen
         canStart={unlocked}
+        registered={registered}
         onStart={() => safely(() => act({ type: "start" }))}
         onUnlock={openHost}
       />
@@ -94,7 +94,7 @@ export default function ManitoMissionGame() {
         assignments={assignments}
         registered={registered}
         missions={MISSIONS}
-        membersChanged={!hasSameMembers(session, MEMBERS)}
+        membersChanged={!hasSameMembers(session, registered)}
         participantUrl={participantUrl}
         onRedrawMissions={(name) => safely(() => act({ type: "redrawMissions", name }))}
         onReleaseDevice={(name) =>
@@ -163,12 +163,14 @@ export default function ManitoMissionGame() {
 
 type StartScreenProps = {
   canStart: boolean;
+  /** 지금 참가자명을 등록한 사람들. 시작하면 이 사람들끼리 마니또가 정해진다 */
+  registered: string[];
   onStart: () => void;
   onUnlock: () => void;
 };
 
-function StartScreen({ canStart, onStart, onUnlock }: StartScreenProps) {
-  const names = listMemberNames(MEMBERS);
+function StartScreen({ canStart, registered, onStart, onUnlock }: StartScreenProps) {
+  const enough = registered.length >= MIN_MEMBERS;
 
   return (
     <section className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
@@ -179,35 +181,38 @@ function StartScreen({ canStart, onStart, onUnlock }: StartScreenProps) {
         {canStart ? "마니또 미션 게임을 시작할까요?" : "아직 게임이 시작되지 않았어요"}
       </h2>
       <p className="text-xl text-zinc-600 md:text-2xl">
-        사회자 포함 {names.length}명 · 미션 {MISSIONS.length}개 · 1인당 미션 3개
+        등록 {registered.length}명 · 미션 {MISSIONS.length}개 · 1인당 미션 3개
       </p>
+      {registered.length > 0 && (
+        <p data-testid="registered-names" className="max-w-5xl text-2xl font-bold text-indigo-700">
+          {registered.join(" · ")}
+        </p>
+      )}
       {canStart ? (
         <>
           <p className="max-w-4xl text-xl text-zinc-500">
-            명단은 lib/members/members.json, 미션은 data/missions.json 에서 수정할 수 있어요.
-            시작하면 모든 사람의 마니또와 미션이 정해지고, 어느 기기에서 접속해도 같은 결과를
-            봅니다.
+            지금 참가자명을 등록한 사람들끼리 마니또와 미션이 정해지고, 어느 기기에서 접속해도 같은
+            결과를 봅니다. 모두 등록했는지 확인한 뒤 시작하세요. (미션은 data/missions.json 에서
+            수정할 수 있어요)
           </p>
-          <Button size="lg" onClick={onStart}>
+          {!enough && (
+            <p role="alert" className="text-2xl font-bold text-red-600">
+              참가자가 최소 {MIN_MEMBERS}명 등록되어야 시작할 수 있어요.
+            </p>
+          )}
+          <Button size="lg" disabled={!enough} onClick={onStart}>
             마니또 게임 시작
           </Button>
         </>
       ) : (
         <>
           <p className="max-w-4xl text-xl text-zinc-500">
-            사회자가 게임을 시작하면 이 화면이 바뀌어요. 그동안 참여자 등록을 먼저 해 두세요.
+            사회자가 게임을 시작하면 이 화면이 바뀌어요. 시작할 때 등록되어 있는 사람만 참여하니
+            아직 등록하지 않은 사람에게 알려 주세요.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/join?next=/games/manito-mission"
-              className="rounded-2xl bg-indigo-600 px-12 py-5 text-4xl font-bold text-white hover:bg-indigo-500"
-            >
-              👋 참여자 등록
-            </Link>
-            <Button variant="secondary" size="lg" onClick={onUnlock}>
-              🔒 사회자 확인하고 시작하기
-            </Button>
-          </div>
+          <Button variant="secondary" size="lg" onClick={onUnlock}>
+            🔒 사회자 확인하고 시작하기
+          </Button>
         </>
       )}
     </section>
@@ -227,15 +232,15 @@ function RegisterPrompt({ session, revoked, onDismissRevoked, onOpenHost }: Regi
   return (
     <section className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
       <p className="text-2xl text-zinc-600">
-        사회자 포함 {session.memberNames.length}명 · 확인 완료 {viewedCount}명
+        참여 {session.memberNames.length}명 · 확인 완료 {viewedCount}명
       </p>
       <h2 className="text-4xl font-black md:text-5xl">
         {revoked ? "이 기기의 등록이 해제되었어요" : "먼저 참여자 등록을 해 주세요"}
       </h2>
       <p className="max-w-3xl text-xl text-zinc-600 md:text-2xl">
         {revoked
-          ? "사회자가 기기 등록을 초기화했어요. 다시 이름을 선택하면 이어서 참여할 수 있어요."
-          : "명단에서 내 이름을 고르면 이 기기로 내 마니또와 미션을 볼 수 있어요."}
+          ? "사회자가 기기 등록을 초기화했어요. 같은 이름을 다시 입력하면 이어서 참여할 수 있어요."
+          : "참가자명을 등록하면 이 기기로 내 마니또와 미션을 볼 수 있어요."}
       </p>
       <div className="flex flex-wrap items-center justify-center gap-4">
         <Link

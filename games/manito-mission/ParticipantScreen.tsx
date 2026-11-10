@@ -32,6 +32,7 @@ export function ParticipantScreen({
 
   const viewedCount = session.memberNames.filter((n) => session.viewed[n]).length;
   const alreadyViewed = session.viewed[me] ?? false;
+  const inGame = session.memberNames.includes(me);
 
   async function view() {
     setLoading(true);
@@ -73,7 +74,7 @@ export function ParticipantScreen({
     <section className="flex flex-1 flex-col gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-xl text-zinc-600 md:text-2xl">
-          사회자 포함 {session.memberNames.length}명 · 확인 완료 {viewedCount}명
+          참여 {session.memberNames.length}명 · 확인 완료 {viewedCount}명
         </p>
         <Button variant="secondary" onClick={onOpenHost}>
           🔒 사회자 화면
@@ -88,6 +89,12 @@ export function ParticipantScreen({
         {error && (
           <p role="alert" className="text-2xl font-bold text-red-600">
             {error}
+          </p>
+        )}
+        {!inGame && (
+          <p role="alert" className="text-2xl font-bold text-amber-700">
+            게임이 시작된 뒤에 등록해서 이번 배정에 없어요. 사회자에게 &quot;전체 다시 뽑기&quot;를
+            요청하세요.
           </p>
         )}
         <Button size="lg" disabled={loading || !mine} onClick={view}>
