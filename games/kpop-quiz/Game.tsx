@@ -13,16 +13,20 @@ import {
   hasPrev,
   isRevealed,
   moveBy,
-  restoreQuiz,
+  restoreGameState,
   revealAnswer,
   revealedCount,
   shuffleQuiz,
   SNIPPET_SECONDS,
+  themeLabel,
+  THEMES,
   type QuizState,
+  type ThemeId,
 } from "./logic";
 import { SONGS, SONGS_ERROR } from "./songs";
 import { Stage } from "./Stage";
-import { loadQuiz, quizStore, updateQuiz } from "./storage";
+import { chooseTheme, gameStore, loadGameState, updateQuiz } from "./storage";
+import { ThemeSelect } from "./ThemeSelect";
 import { useSongPlayer } from "./useSongPlayer";
 
 /** 사회자가 로그인해야만 진행할 수 있다. 로그인 전에는 곡 정보가 화면에 전혀 나오지 않는다 */
@@ -58,15 +62,17 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
-/** 저장된 진행 상태(곡 순서·현재 곡·공개한 곡)를 읽어 온 뒤에 대시보드를 그린다 */
+/** 저장된 진행 상태(선택한 테마, 테마별 곡 순서·현재 곡·공개한 곡)를 읽어 온 뒤에 화면을 고른다 */
 function Dashboard() {
-  const raw = useStoredValue(quizStore);
-  const quiz = useMemo(() => (raw === LOADING ? null : restoreQuiz(raw, SONGS)), [raw]);
-  if (quiz === null) return <p className="m-auto text-2xl text-zinc-400">불러오는 중...</p>;
-  return <Board quiz={quiz} />;
+  const raw = useStoredValue(gameStore);
+  const state = useMemo(() => (raw === LOADING ? null : restoreGameState(raw, SONGS)), [raw]);
+  if (state === null) return <p className="m-auto text-2xl text-zinc-400">불러오는 중...</p>;
+  if (state.theme === null) return <ThemeSelect state={state} onSelect={chooseTheme} />;
+  // theme 이 바뀌면 곡 플레이어도 새로 만든다 (이전 테마의 소리가 이어지지 않게)
+  return <Board key={state.theme} theme={state.theme} quiz={state.quizzes[state.theme]} />;
 }
 
-function Board({ quiz }: { quiz: QuizState }) {
+function Board({ theme, quiz }: { theme: ThemeId; quiz: QuizState }) {
   const song = currentSong(quiz);
   const revealed = isRevealed(quiz);
   const { containerRef, status, message, snippet, togglePlay, playSnippet, playChorus, playFull } =
@@ -78,12 +84,12 @@ function Board({ quiz }: { quiz: QuizState }) {
   // 정답 공개(버튼·Enter): 처음 공개할 때만 코러스 구간을 바로 들려준다. 이미 공개한 곡은 다시 재생하지 않는다.
   // 단축키 핸들러가 오래된 화면 값을 쥐고 있을 수 있어 공개 여부는 저장소의 최신 값으로 확인한다.
   const reveal = useCallback(() => {
-    if (isRevealed(loadQuiz())) return;
-    updateQuiz(revealAnswer);
+    if (isRevealed(loadGameState().quizzes[theme])) return;
+    updateQuiz(theme, revealAnswer);
     playChorus();
-  }, [playChorus]);
-  const prev = () => updateQuiz((q) => moveBy(q, -1));
-  const next = () => updateQuiz((q) => moveBy(q, 1));
+  }, [theme, playChorus]);
+  const prev = useCallback(() => updateQuiz(theme, (q) => moveBy(q, -1)), [theme]);
+  const next = useCallback(() => updateQuiz(theme, (q) => moveBy(q, 1)), [theme]);
 
   // 단축키: Space 재생/정지, Enter 정답 공개, ←/→ 이전/다음 곡, 1·2 앞부분 듣기, 3 코러스 듣기
   useEffect(() => {
@@ -129,19 +135,32 @@ function Board({ quiz }: { quiz: QuizState }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [togglePlay, playSnippet, playChorus, reveal]);
+  }, [togglePlay, playSnippet, playChorus, reveal, prev, next]);
 
   const ready = status !== "loading" && status !== "error";
 
   return (
     <div className="flex flex-1 flex-col gap-6">
       <div className="flex w-full flex-wrap items-center justify-between gap-4">
-        <p className="text-3xl font-black" data-testid="progress">
-          문제 {quiz.index + 1} / {quiz.songs.length}
-          <span className="ml-4 text-xl font-bold text-zinc-400">공개 {revealedCount(quiz)}곡</span>
-        </p>
+        <div className="flex flex-wrap items-center gap-4">
+          <p
+            data-testid="theme-name"
+            className="rounded-full bg-indigo-600 px-5 py-2 text-2xl font-black"
+          >
+            {THEMES.find((t) => t.id === theme)?.emoji} {themeLabel(theme)}
+          </p>
+          <p className="text-3xl font-black" data-testid="progress">
+            문제 {quiz.index + 1} / {quiz.songs.length}
+            <span className="ml-4 text-xl font-bold text-zinc-400">
+              공개 {revealedCount(quiz)}곡
+            </span>
+          </p>
+        </div>
         <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={() => updateQuiz((q) => shuffleQuiz(q))}>
+          <Button variant="secondary" onClick={() => chooseTheme(null)}>
+            🎼 테마 바꾸기
+          </Button>
+          <Button variant="secondary" onClick={() => updateQuiz(theme, (q) => shuffleQuiz(q))}>
             🔀 순서 섞기
           </Button>
           <Button variant="secondary" onClick={() => hostPinStore.save(null)}>

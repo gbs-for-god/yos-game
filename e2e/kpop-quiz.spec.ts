@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import songs from "../games/kpop-quiz/data/songs.json";
+import allSongs from "../games/kpop-quiz/data/songs.json";
 import { HOST_PIN, randomName, seedIdentity } from "./helpers";
 
 /**
@@ -38,6 +38,11 @@ setTimeout(function () { window.onYouTubeIframeAPIReady && window.onYouTubeIfram
 
 type Call = [string, ...unknown[]];
 
+/** 대부분의 테스트는 "2000년대" 테마로 진행한다. 다른 테마는 테마 테스트에서 따로 본다 */
+const songs = allSongs.filter((song) => song.theme === "2000s");
+const songsOf = (theme: string) => allSongs.filter((song) => song.theme === theme);
+const STATE_KEY = "yos-game:kpop-quiz:state";
+
 async function setup(page: Page) {
   // 구간 듣기 타이머를 실제로 기다리지 않고 시계를 앞으로 돌려 검증한다
   await page.clock.install();
@@ -51,15 +56,17 @@ const calls = (page: Page) =>
   page.evaluate(() => (window as never as { __yt: { calls: Call[] } }).__yt.calls);
 const names = async (page: Page) => (await calls(page)).map((c) => c[0]);
 
-async function login(page: Page) {
+/** 사회자 로그인 → 테마 선택(기본 2000년대) → 게임 화면 */
+async function login(page: Page, theme = "2000년대") {
   await page.goto("/games/kpop-quiz");
   await page.getByLabel("사회자 비밀번호").fill(HOST_PIN);
   await page.getByRole("button", { name: "들어가기" }).click();
-  await expect(page.getByTestId("progress")).toContainText(`문제 1 / ${songs.length}`);
+  await page.getByRole("button", { name: new RegExp(theme) }).click();
+  await expect(page.getByTestId("progress")).toContainText("문제");
   await expect(page.getByRole("button", { name: "▶ 재생" })).toBeEnabled();
 }
 
-test.describe("K-pop 노래 맞추기", () => {
+test.describe("노래 맞추기", () => {
   test.beforeEach(async ({ page }) => {
     await setup(page);
   });
@@ -81,9 +88,11 @@ test.describe("K-pop 노래 맞추기", () => {
 
     await page.getByLabel("사회자 비밀번호").fill(HOST_PIN);
     await page.getByRole("button", { name: "들어가기" }).click();
+    await expect(page.getByRole("heading", { name: "🎵 테마를 선택하세요" })).toBeVisible();
+    await page.getByRole("button", { name: /2000년대/ }).click();
     await expect(page.getByTestId("progress")).toBeVisible();
 
-    // 새로고침해도 로그인이 유지되고, 로그아웃하면 다시 잠긴다
+    // 새로고침해도 로그인과 선택한 테마가 유지되고, 로그아웃하면 다시 잠긴다
     await page.reload();
     await expect(page.getByTestId("progress")).toBeVisible();
     await page.getByRole("button", { name: "🔒 로그아웃" }).click();
@@ -245,28 +254,24 @@ test.describe("K-pop 노래 맞추기", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByTestId("progress")).toContainText("공개 2곡");
 
+    // 저장된 2000년대 진행 상태를 읽는다
     const readState = () =>
-      page.evaluate(
-        () =>
-          JSON.parse(window.localStorage.getItem("yos-game:kpop-quiz:state") ?? "null") as {
-            order: string[];
-            index: number;
-            revealed: string[];
-          },
-      );
+      page.evaluate((key) => {
+        const stored = JSON.parse(window.localStorage.getItem(key) ?? "null") as {
+          quizzes: Record<string, { order: string[]; index: number; revealed: string[] }>;
+        };
+        return stored.quizzes["2000s"];
+      }, STATE_KEY);
     const before = await readState();
     expect(before.revealed).toHaveLength(2);
 
     // 사회자 메뉴에서 초기화 (비밀번호는 이 탭에 기억되어 있어 바로 열린다)
     await page.goto("/host");
-    await expect(page.getByTestId("kpop-host-status")).toHaveText(
-      `전체 ${songs.length}곡 · 공개한 곡 2곡`,
-    );
-    await page.getByRole("button", { name: "K-pop 노래 맞추기 초기화" }).click();
+    const status = page.getByTestId("kpop-host-status");
+    await expect(status).toContainText(`2000년대 · 공개 2 / ${songs.length}곡`);
+    await page.getByRole("button", { name: "노래 맞추기 초기화" }).click();
     await expect(page.getByRole("status")).toContainText("공개했던 2곡을 다시 가리고");
-    await expect(page.getByTestId("kpop-host-status")).toHaveText(
-      `전체 ${songs.length}곡 · 공개한 곡 0곡`,
-    );
+    await expect(status).toContainText(`2000년대 · 공개 0 / ${songs.length}곡`);
 
     // 같은 곡들이 다른 순서로, 처음 곡부터, 공개 없이 저장된다
     const after = await readState();
@@ -341,6 +346,132 @@ test.describe("K-pop 노래 맞추기", () => {
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("3");
     expect((await calls(page)).slice(-2)).toEqual([["seek", songs[1].chorusStart], ["play"]]);
+  });
+
+  test("테마 선택 화면은 곡 제목 없이 테마별 곡 수만 보여 주고, 고른 테마의 곡만 낸다", async ({
+    page,
+  }) => {
+    await page.goto("/games/kpop-quiz");
+    await page.getByLabel("사회자 비밀번호").fill(HOST_PIN);
+    await page.getByRole("button", { name: "들어가기" }).click();
+
+    await expect(page.getByRole("heading", { name: "🎵 테마를 선택하세요" })).toBeVisible();
+    for (const [label, theme] of [
+      ["2000년대", "2000s"],
+      ["2010년대", "2010s"],
+      ["CCM", "ccm"],
+    ]) {
+      await expect(page.getByRole("button", { name: new RegExp(label) })).toContainText(
+        `${songsOf(theme).length}곡 · 공개 0곡`,
+      );
+    }
+    for (const song of allSongs) await expect(page.getByText(song.title)).toHaveCount(0);
+
+    // 2010년대를 고르면 그 테마의 곡만 나온다
+    await page.getByRole("button", { name: /2010년대/ }).click();
+    await expect(page.getByTestId("theme-name")).toContainText("2010년대");
+    await expect(page.getByTestId("progress")).toContainText(`문제 1 / ${songsOf("2010s").length}`);
+    const ids2010s = songsOf("2010s").map((song) => song.youtubeId);
+    expect(ids2010s).toContain((await calls(page)).filter((c) => c[0] === "cue").at(-1)?.[1]);
+
+    // 새로고침해도 고른 테마가 유지되고, 테마 바꾸기로 선택 화면에 돌아간다
+    await page.reload();
+    await expect(page.getByTestId("theme-name")).toContainText("2010년대");
+    await page.getByRole("button", { name: "🎼 테마 바꾸기" }).click();
+    await expect(page.getByRole("heading", { name: "🎵 테마를 선택하세요" })).toBeVisible();
+    await expect(page.getByTestId("progress")).toHaveCount(0);
+  });
+
+  test("테마마다 진행 상태가 따로 저장되어 다른 테마를 갔다 와도 이어진다", async ({ page }) => {
+    await login(page, "2000년대");
+    await page.getByRole("button", { name: "🎉 정답 공개" }).click();
+    await expect(page.getByTestId("progress")).toContainText("공개 1곡");
+    await page.getByRole("button", { name: "다음 곡 ⏭" }).click();
+
+    await page.getByRole("button", { name: "🎼 테마 바꾸기" }).click();
+    // 선택 화면에는 테마별 공개 수가 보인다
+    await expect(page.getByRole("button", { name: /2000년대/ })).toContainText("공개 1곡");
+    await expect(page.getByRole("button", { name: /2010년대/ })).toContainText("공개 0곡");
+
+    await page.getByRole("button", { name: /2010년대/ }).click();
+    await expect(page.getByTestId("progress")).toContainText("공개 0곡");
+    await page.getByRole("button", { name: "🎉 정답 공개" }).click();
+    await expect(page.getByTestId("answer-title")).toHaveText(songsOf("2010s")[0].title);
+
+    // 2000년대로 돌아오면 공개한 곡과 보던 위치가 그대로다
+    await page.getByRole("button", { name: "🎼 테마 바꾸기" }).click();
+    await page.getByRole("button", { name: /2000년대/ }).click();
+    await expect(page.getByTestId("progress")).toContainText(`문제 2 / ${songs.length}`);
+    await expect(page.getByTestId("progress")).toContainText("공개 1곡");
+    await page.getByRole("button", { name: "⏮ 이전 곡" }).click();
+    await expect(page.getByTestId("answer-title")).toHaveText(songs[0].title);
+  });
+
+  test("코러스 지점이 없는 곡(CCM)은 코러스 듣기가 꺼지고, 정답 공개는 소리 없이 공개만 한다", async ({
+    page,
+  }) => {
+    await login(page, "CCM");
+    expect(songsOf("ccm").every((song) => !("chorusStart" in song))).toBe(true);
+    await expect(page.getByRole("button", { name: "🎤 코러스 듣기" })).toBeDisabled();
+
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("answer-title")).toHaveText(songsOf("ccm")[0].title);
+    await page.keyboard.press("3");
+    expect(await names(page)).not.toContain("play");
+
+    // 앞부분 듣기는 CCM 에서도 된다
+    await page.keyboard.press("1");
+    expect(await names(page)).toContain("play");
+  });
+
+  test("사회자 메뉴의 게임 초기화는 모든 테마의 공개를 되돌리고 고른 테마는 그대로 둔다", async ({
+    page,
+  }) => {
+    await login(page, "2000년대");
+    await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: "🎼 테마 바꾸기" }).click();
+    await page.getByRole("button", { name: /2010년대/ }).click();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("Enter");
+
+    await page.goto("/host");
+    const status = page.getByTestId("kpop-host-status");
+    await expect(status).toContainText(`2000년대 · 공개 1 / ${songs.length}곡`);
+    await expect(status).toContainText(`2010년대 · 공개 2 / ${songsOf("2010s").length}곡`);
+    await expect(status).toContainText(`CCM · 공개 0 / ${songsOf("ccm").length}곡`);
+
+    await page.getByRole("button", { name: "노래 맞추기 초기화" }).click();
+    await expect(page.getByRole("status")).toContainText("공개했던 3곡을 다시 가리고 모든 테마의");
+    await expect(status).toContainText(`2000년대 · 공개 0 / ${songs.length}곡`);
+    await expect(status).toContainText(`2010년대 · 공개 0 / ${songsOf("2010s").length}곡`);
+
+    // 마지막에 보던 테마는 그대로이고, 처음 곡부터 가려진 상태다
+    await page.goto("/games/kpop-quiz");
+    await expect(page.getByTestId("theme-name")).toContainText("2010년대");
+    await expect(page.getByTestId("progress")).toContainText("문제 1 /");
+    await expect(page.getByTestId("progress")).toContainText("공개 0곡");
+    await expect(page.getByTestId("blind-cover")).toBeVisible();
+  });
+
+  test("테마 기능이 생기기 전에 저장된 진행 상태는 2000년대로 이어진다", async ({ page }) => {
+    const legacy = JSON.stringify({
+      order: songs.map((song) => song.id),
+      index: 1,
+      revealed: [songs[0].id],
+    });
+    await page.addInitScript(
+      ([key, value]) => {
+        if (window.localStorage.getItem(key) === null) window.localStorage.setItem(key, value);
+      },
+      [STATE_KEY, legacy] as const,
+    );
+
+    await login(page, "2000년대");
+    await expect(page.getByTestId("progress")).toContainText(`문제 2 / ${songs.length}`);
+    await expect(page.getByTestId("progress")).toContainText("공개 1곡");
+    await page.getByRole("button", { name: "⏮ 이전 곡" }).click();
+    await expect(page.getByTestId("answer-title")).toHaveText(songs[0].title);
   });
 
   test("순서 섞기는 처음 곡으로 돌아가고 같은 곡들을 모두 유지한다", async ({ page }) => {

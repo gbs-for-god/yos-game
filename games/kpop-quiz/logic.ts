@@ -1,14 +1,35 @@
 /**
- * K-pop 노래 맞추기의 순수 로직.
+ * 노래 맞추기의 순수 로직.
  * React/브라우저/YouTube API 에 의존하지 않는다 (재생은 useSongPlayer, 화면은 Game.tsx 담당).
  *
  * 용어
+ * - 테마(theme): 곡을 묶는 분류 (2000년대, 2010년대, CCM). 사회자가 하나를 골라 그 테마의 곡만 낸다
  * - 곡(song): 문제로 낼 노래 한 곡. startTime 은 문제 재생을 시작할 지점(초)이다
- * - 퀴즈(quiz): 곡 순서(songs)와 지금 보고 있는 곡(index), 정답 공개 여부(revealed)
+ * - 퀴즈(quiz): 한 테마의 곡 순서(songs)와 지금 보고 있는 곡(index), 정답 공개 여부(revealed)
+ * - 진행 상태(state): 선택한 테마와 테마별 퀴즈 전체. 테마마다 순서·공개 여부를 따로 기억한다
  */
+
+/** 선택할 수 있는 테마. 화면에는 이 순서대로 보인다 */
+export const THEMES = [
+  { id: "2000s", label: "2000년대", emoji: "🎤" },
+  { id: "2010s", label: "2010년대", emoji: "🎧" },
+  { id: "ccm", label: "CCM", emoji: "🙏" },
+] as const;
+
+export type ThemeId = (typeof THEMES)[number]["id"];
+
+export function isThemeId(value: unknown): value is ThemeId {
+  return THEMES.some((theme) => theme.id === value);
+}
+
+export function themeLabel(id: ThemeId): string {
+  return THEMES.find((theme) => theme.id === id)?.label ?? id;
+}
 
 export type Song = {
   id: string;
+  /** 이 곡이 속한 테마 */
+  theme: ThemeId;
   title: string;
   artist: string;
   /** 유튜브 영상 ID (11자) */
@@ -42,6 +63,8 @@ export function validateSongs(songs: readonly Song[]): string | null {
   for (const song of songs) {
     if (!song.id || !song.title.trim() || !song.artist.trim())
       return `곡 정보가 비어 있어요: ${song.id || "(id 없음)"}`;
+    if (!isThemeId(song.theme))
+      return `theme 은 ${THEMES.map((t) => t.id).join(", ")} 중 하나여야 해요: ${song.id}`;
     if (ids.has(song.id)) return `곡 id 가 겹쳐요: ${song.id}`;
     ids.add(song.id);
     if (!YOUTUBE_ID_PATTERN.test(song.youtubeId))
@@ -52,6 +75,11 @@ export function validateSongs(songs: readonly Song[]): string | null {
       return `chorusStart 는 0 이상이어야 해요: ${song.id}`;
   }
   return null;
+}
+
+/** 한 테마에 속한 곡만 골라 낸다 (목록 순서 유지) */
+export function songsOfTheme(songs: readonly Song[], theme: ThemeId): Song[] {
+  return songs.filter((song) => song.theme === theme);
 }
 
 export function createQuiz(songs: readonly Song[]): QuizState {
@@ -128,16 +156,15 @@ export function resetQuiz(state: QuizState, random: () => number = Math.random):
   return { songs, index: 0, revealed: [] };
 }
 
-/** 이 기기에 저장하는 진행 상태. 곡 정보는 data/songs.json 이 원본이라 id 만 저장한다 */
+/** 이 기기에 저장하는 한 테마의 진행 상태. 곡 정보는 data/songs.json 이 원본이라 id 만 저장한다 */
 type StoredQuiz = { order: string[]; index: number; revealed: string[] };
 
-export function serializeQuiz(state: QuizState): string {
-  const stored: StoredQuiz = {
+function quizToStored(state: QuizState): StoredQuiz {
+  return {
     order: state.songs.map((song) => song.id),
     index: state.index,
     revealed: [...state.revealed],
   };
-  return JSON.stringify(stored);
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -145,33 +172,112 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 /**
- * 저장된 진행 상태를 곡 목록에 맞춰 복원한다.
+ * 저장된 한 테마의 진행 상태를 그 테마의 곡 목록에 맞춰 복원한다.
  * 곡 목록이 바뀌었어도 안전하게: 없어진 곡은 버리고, 새로 생긴 곡은 순서 맨 뒤에 붙인다.
  * 값이 없거나 손상되었으면 처음 상태(createQuiz)를 돌려준다.
  */
-export function restoreQuiz(raw: string | null, songs: readonly Song[]): QuizState {
-  if (!raw) return createQuiz(songs);
+function quizFromStored(value: unknown, songs: readonly Song[]): QuizState {
+  if (typeof value !== "object" || value === null) return createQuiz(songs);
+  const { order, index, revealed } = value as Record<string, unknown>;
+  if (!isStringArray(order) || !isStringArray(revealed) || typeof index !== "number")
+    return createQuiz(songs);
+
+  const byId = new Map(songs.map((song) => [song.id, song]));
+  const ordered: Song[] = [];
+  for (const id of order) {
+    const song = byId.get(id);
+    if (song && !ordered.includes(song)) ordered.push(song);
+  }
+  for (const song of songs) if (!ordered.includes(song)) ordered.push(song);
+
+  return {
+    songs: ordered,
+    index: Math.min(Math.max(Math.trunc(index), 0), Math.max(ordered.length - 1, 0)),
+    revealed: [...new Set(revealed)].filter((id) => byId.has(id)),
+  };
+}
+
+/** 게임 전체 진행 상태: 선택한 테마(없으면 null = 테마 선택 화면)와 테마별 퀴즈 */
+export type GameState = {
+  theme: ThemeId | null;
+  quizzes: Record<ThemeId, QuizState>;
+};
+
+export function createGameState(songs: readonly Song[]): GameState {
+  return {
+    theme: null,
+    quizzes: Object.fromEntries(
+      THEMES.map(({ id }) => [id, createQuiz(songsOfTheme(songs, id))]),
+    ) as Record<ThemeId, QuizState>,
+  };
+}
+
+export function serializeGameState(state: GameState): string {
+  return JSON.stringify({
+    theme: state.theme,
+    quizzes: Object.fromEntries(THEMES.map(({ id }) => [id, quizToStored(state.quizzes[id])])),
+  });
+}
+
+/**
+ * 저장된 값을 곡 목록에 맞춰 복원한다. 값이 없거나 손상되었으면 처음 상태.
+ * 테마 기능이 생기기 전에 저장된 값(테마 없이 순서·공개만 있는 형식)은 "2000년대" 진행 상태로 옮긴다.
+ */
+export function restoreGameState(raw: string | null, songs: readonly Song[]): GameState {
+  const state = createGameState(songs);
+  if (!raw) return state;
   try {
     const value: unknown = JSON.parse(raw);
-    if (typeof value !== "object" || value === null) return createQuiz(songs);
-    const { order, index, revealed } = value as Record<string, unknown>;
-    if (!isStringArray(order) || !isStringArray(revealed) || typeof index !== "number")
-      return createQuiz(songs);
+    if (typeof value !== "object" || value === null) return state;
+    const record = value as Record<string, unknown>;
 
-    const byId = new Map(songs.map((song) => [song.id, song]));
-    const ordered: Song[] = [];
-    for (const id of order) {
-      const song = byId.get(id);
-      if (song && !ordered.includes(song)) ordered.push(song);
+    if (Array.isArray(record.order)) {
+      state.quizzes["2000s"] = quizFromStored(record, songsOfTheme(songs, "2000s"));
+      return state;
     }
-    for (const song of songs) if (!ordered.includes(song)) ordered.push(song);
 
-    return {
-      songs: ordered,
-      index: Math.min(Math.max(Math.trunc(index), 0), ordered.length - 1),
-      revealed: [...new Set(revealed)].filter((id) => byId.has(id)),
-    };
+    const stored =
+      typeof record.quizzes === "object" && record.quizzes !== null
+        ? (record.quizzes as Record<string, unknown>)
+        : {};
+    for (const { id } of THEMES) {
+      state.quizzes[id] = quizFromStored(stored[id], songsOfTheme(songs, id));
+    }
+    // 곡이 하나도 없는 테마는 고를 수 없으므로 선택 상태로 남기지 않는다
+    if (isThemeId(record.theme) && state.quizzes[record.theme].songs.length > 0) {
+      state.theme = record.theme;
+    }
+    return state;
   } catch {
-    return createQuiz(songs);
+    return createGameState(songs);
   }
+}
+
+/** 테마를 고른다. null 이면 테마 선택 화면으로 돌아간다 */
+export function selectTheme(state: GameState, theme: ThemeId | null): GameState {
+  return { ...state, theme };
+}
+
+/** 한 테마의 퀴즈만 바꾼다 */
+export function withQuiz(
+  state: GameState,
+  theme: ThemeId,
+  change: (quiz: QuizState) => QuizState,
+): GameState {
+  return { ...state, quizzes: { ...state.quizzes, [theme]: change(state.quizzes[theme]) } };
+}
+
+/** 모든 테마를 초기화한다(공개한 정답을 모두 가리고 테마마다 곡 순서를 한 번 섞는다). 선택한 테마는 그대로 둔다 */
+export function resetAllQuizzes(state: GameState, random: () => number = Math.random): GameState {
+  return {
+    ...state,
+    quizzes: Object.fromEntries(
+      THEMES.map(({ id }) => [id, resetQuiz(state.quizzes[id], random)]),
+    ) as Record<ThemeId, QuizState>,
+  };
+}
+
+/** 모든 테마에서 공개한 곡의 수 */
+export function totalRevealed(state: GameState): number {
+  return THEMES.reduce((sum, { id }) => sum + state.quizzes[id].revealed.length, 0);
 }
