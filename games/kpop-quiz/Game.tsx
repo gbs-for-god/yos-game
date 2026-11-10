@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { HostPinForm } from "@/components/host/HostPinForm";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { LOADING, useStoredValue } from "@/lib/hooks/useStoredValue";
 import { hostPinStore, useVerifiedHostPin } from "@/lib/host/client";
 import {
-  CHORUS_SECONDS,
   chorusSeconds,
   currentSong,
   hasNext,
@@ -78,15 +77,15 @@ function Board({ quiz }: { quiz: QuizState }) {
   // 상태 변경은 항상 저장소의 최신 값을 기준으로 한다 (단축키 핸들러가 오래된 화면 값을 쥐지 않도록)
   // 정답 공개(버튼·Enter): 처음 공개할 때만 코러스 구간을 바로 들려준다. 이미 공개한 곡은 다시 재생하지 않는다.
   // 단축키 핸들러가 오래된 화면 값을 쥐고 있을 수 있어 공개 여부는 저장소의 최신 값으로 확인한다.
-  const reveal = () => {
+  const reveal = useCallback(() => {
     if (isRevealed(loadQuiz())) return;
     updateQuiz(revealAnswer);
     playChorus();
-  };
+  }, [playChorus]);
   const prev = () => updateQuiz((q) => moveBy(q, -1));
   const next = () => updateQuiz((q) => moveBy(q, 1));
 
-  // 단축키: Space 재생/정지, Enter 정답 공개, ←/→ 이전/다음 곡
+  // 단축키: Space 재생/정지, Enter 정답 공개, ←/→ 이전/다음 곡, 1·2 앞부분 듣기, 3 코러스 듣기
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -108,6 +107,16 @@ function Board({ quiz }: { quiz: QuizState }) {
           event.preventDefault();
           next();
           break;
+        // 숫자 키는 화면의 구간 듣기 버튼 순서와 같다: 1 = 앞부분 1초, 2 = 앞부분 3초, 3 = 코러스
+        case "1":
+        case "2":
+          event.preventDefault();
+          playSnippet(SNIPPET_SECONDS[Number(event.key) - 1]);
+          break;
+        case "3":
+          event.preventDefault();
+          playChorus();
+          break;
       }
     }
     // Space 는 버튼에서 keyup 에 클릭이 일어나므로 그것도 막는다
@@ -120,7 +129,7 @@ function Board({ quiz }: { quiz: QuizState }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [togglePlay]);
+  }, [togglePlay, playSnippet, playChorus, reveal]);
 
   const ready = status !== "loading" && status !== "error";
 
@@ -190,7 +199,7 @@ function Board({ quiz }: { quiz: QuizState }) {
             </BigButton>
           ))}
           <BigButton onClick={playChorus} disabled={!ready || chorusSeconds(song) === null}>
-            {`🎤 코러스 ${CHORUS_SECONDS}초 듣기`}
+            🎤 코러스 듣기
           </BigButton>
           <BigButton onClick={playFull} disabled={!ready}>
             🎼 전체 재생
@@ -204,7 +213,10 @@ function Board({ quiz }: { quiz: QuizState }) {
             단축키 <kbd className="rounded bg-zinc-800 px-2 py-1">Space</kbd> 재생/정지 ·{" "}
             <kbd className="rounded bg-zinc-800 px-2 py-1">Enter</kbd> 정답 공개 ·{" "}
             <kbd className="rounded bg-zinc-800 px-2 py-1">←</kbd>{" "}
-            <kbd className="rounded bg-zinc-800 px-2 py-1">→</kbd> 이전/다음 곡
+            <kbd className="rounded bg-zinc-800 px-2 py-1">→</kbd> 이전/다음 곡 ·{" "}
+            <kbd className="rounded bg-zinc-800 px-2 py-1">1</kbd>{" "}
+            <kbd className="rounded bg-zinc-800 px-2 py-1">2</kbd>{" "}
+            <kbd className="rounded bg-zinc-800 px-2 py-1">3</kbd> 1초·3초·코러스 듣기
           </p>
         </div>
       </div>

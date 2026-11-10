@@ -149,7 +149,7 @@ test.describe("K-pop 노래 맞추기", () => {
     await login(page);
     const chorusStart = songs[0].chorusStart;
     expect(chorusStart).toBeGreaterThan(0);
-    const chorusButton = page.getByRole("button", { name: "🎤 코러스 15초 듣기" });
+    const chorusButton = page.getByRole("button", { name: "🎤 코러스 듣기" });
     await expect(chorusButton).toBeEnabled();
 
     await chorusButton.click();
@@ -314,6 +314,33 @@ test.describe("K-pop 노래 맞추기", () => {
     await page.keyboard.press("Space");
     await expect(page.getByRole("button", { name: "⏸ 일시정지" })).toBeVisible();
     await expect(page.getByTestId("answer-title")).toHaveCount(0);
+  });
+
+  test("숫자 단축키: 1 앞부분 1초, 2 앞부분 3초, 3 코러스 듣기", async ({ page }) => {
+    await login(page);
+    const start = songs[0].startTime ?? 0;
+
+    await page.keyboard.press("1");
+    await expect(page.getByTestId("stage-status")).toHaveText("🔊 앞부분 1초 듣는 중");
+    expect((await calls(page)).slice(-2)).toEqual([["seek", start], ["play"]]);
+    await page.clock.runFor(1200);
+    await expect(page.getByTestId("stage-status")).toHaveText("⏸ 일시정지");
+
+    await page.keyboard.press("2");
+    await expect(page.getByTestId("stage-status")).toHaveText("🔊 앞부분 3초 듣는 중");
+    await page.clock.runFor(1500);
+    await expect(page.getByTestId("stage-status")).toHaveText("🔊 앞부분 3초 듣는 중");
+    await page.clock.runFor(2000);
+    await expect(page.getByTestId("stage-status")).toHaveText("⏸ 일시정지");
+
+    await page.keyboard.press("3");
+    await expect(page.getByTestId("stage-status")).toHaveText("🔊 코러스 구간 듣는 중");
+    expect((await calls(page)).slice(-2)).toEqual([["seek", songs[0].chorusStart], ["play"]]);
+
+    // 화면 버튼과 같은 동작이라 공개 후에도 쓸 수 있고, 다른 곡에서는 그 곡 기준이다
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("3");
+    expect((await calls(page)).slice(-2)).toEqual([["seek", songs[1].chorusStart], ["play"]]);
   });
 
   test("순서 섞기는 처음 곡으로 돌아가고 같은 곡들을 모두 유지한다", async ({ page }) => {
