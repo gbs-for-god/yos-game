@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { chorusSeconds, CHORUS_SECONDS, startSeconds, type Song } from "./logic";
+import {
+  chorusSeconds,
+  CHORUS_SECONDS,
+  snippetStart,
+  startSeconds,
+  type Song,
+  type SnippetSeconds,
+} from "./logic";
 import { loadYouTubeApi, YT_STATE, type YTPlayer } from "./youtube";
 
 export type PlayerStatus = "loading" | "ready" | "playing" | "paused" | "error";
@@ -163,9 +170,10 @@ export function useSongPlayer(song: Song) {
     [stopSnippet],
   );
 
-  /** 문제 시작 지점부터 seconds 초만 들려주고 멈춘다 */
+  /** 앞부분 듣기: 그 버튼의 시작 지점(snippetNStart, 없으면 문제 시작 지점)부터 seconds 초만 들려주고 멈춘다 */
   const playSnippet = useCallback(
-    (seconds: number) => playRange(startSeconds(songRef.current), { kind: "intro", seconds }),
+    (seconds: SnippetSeconds) =>
+      playRange(snippetStart(songRef.current, seconds), { kind: "intro", seconds }),
     [playRange],
   );
 

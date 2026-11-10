@@ -38,6 +38,13 @@ export type Song = {
   startTime?: number;
   /** 코러스(후렴) 시작 지점(초). 없으면 코러스 듣기 버튼이 꺼진다 */
   chorusStart?: number;
+} & {
+  /**
+   * "앞부분 N초 듣기" 버튼별 시작 지점(초). 값(숫자)이 있으면 그 버튼은 이 지점으로 이동해서 N초를 들려주고,
+   * 없거나 null 이면 기본대로 startTime(없으면 0초)부터 들려준다.
+   * 키 이름은 SNIPPET_SECONDS 의 길이로 정해진다 (snippet1Start, snippet3Start).
+   */
+  [K in SnippetStartKey]?: number | null;
 };
 
 export type QuizState = {
@@ -50,6 +57,10 @@ export type QuizState = {
 
 /** "앞부분 N초 듣기" 버튼에 쓰는 길이(초) */
 export const SNIPPET_SECONDS = [1, 3] as const;
+
+export type SnippetSeconds = (typeof SNIPPET_SECONDS)[number];
+/** 앞부분 듣기 버튼별 시작 지점 키 (예: snippet1Start) */
+export type SnippetStartKey = `snippet${SnippetSeconds}Start`;
 
 /** "코러스 듣기" 버튼이 코러스 시작 지점부터 들려주는 길이(초) */
 export const CHORUS_SECONDS = 15;
@@ -73,6 +84,12 @@ export function validateSongs(songs: readonly Song[]): string | null {
       return `startTime 은 0 이상이어야 해요: ${song.id}`;
     if (song.chorusStart !== undefined && !(song.chorusStart >= 0))
       return `chorusStart 는 0 이상이어야 해요: ${song.id}`;
+    for (const seconds of SNIPPET_SECONDS) {
+      const key: SnippetStartKey = `snippet${seconds}Start`;
+      const value = song[key];
+      if (value !== undefined && value !== null && !(value >= 0))
+        return `${key} 는 0 이상의 숫자이거나 비워(null) 두어야 해요: ${song.id}`;
+    }
   }
   return null;
 }
@@ -102,6 +119,15 @@ export function revealedCount(state: QuizState): number {
 /** 문제 재생 시작 지점(초) */
 export function startSeconds(song: Song): number {
   return song.startTime ?? 0;
+}
+
+/**
+ * "앞부분 N초 듣기"가 시작할 지점(초).
+ * 그 버튼의 키(snippetNStart)에 숫자가 있으면 그 값, 없거나 null 이면 기본값인 문제 시작 지점(startTime).
+ */
+export function snippetStart(song: Song, seconds: SnippetSeconds): number {
+  const value = song[`snippet${seconds}Start`];
+  return typeof value === "number" ? value : startSeconds(song);
 }
 /** 코러스 시작 지점이 정해져 있으면 그 값, 없으면 null */
 export function chorusSeconds(song: Song): number | null {

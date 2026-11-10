@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import allSongs from "../games/kpop-quiz/data/songs.json";
+import { snippetStart, validateSongs, type Song } from "../games/kpop-quiz/logic";
 import { HOST_PIN, randomName, seedIdentity } from "./helpers";
 
 /**
@@ -491,5 +492,45 @@ test.describe("노래 맞추기", () => {
       if (i < songs.length - 1) await page.keyboard.press("ArrowRight");
     }
     expect([...seen].sort()).toEqual(songs.map((s) => s.title).sort());
+  });
+});
+
+/** 곡 데이터 규칙 (브라우저 없이 순수 함수만 확인) */
+test.describe("노래 맞추기 곡 데이터", () => {
+  const base: Song = {
+    id: "x",
+    title: "곡",
+    artist: "가수",
+    youtubeId: "AAAAAAAAAAA",
+    theme: "2000s",
+  };
+
+  test("앞부분 듣기 시작 지점: 버튼별 키에 숫자가 있으면 그 값, 없거나 null 이면 startTime(없으면 0)", () => {
+    // 기본값
+    expect(snippetStart(base, 1)).toBe(0);
+    expect(snippetStart({ ...base, startTime: 5 }, 3)).toBe(5);
+    expect(
+      snippetStart({ ...base, startTime: 5, snippet1Start: null, snippet3Start: null }, 1),
+    ).toBe(5);
+
+    // 버튼마다 따로 적용되고, 0 도 "값이 있는 것"이다
+    const song: Song = { ...base, startTime: 5, snippet1Start: 12.5, snippet3Start: 0 };
+    expect(snippetStart(song, 1)).toBe(12.5);
+    expect(snippetStart(song, 3)).toBe(0);
+    expect(snippetStart({ ...base, startTime: 5, snippet1Start: 12.5 }, 3)).toBe(5);
+  });
+
+  test("snippet1Start·snippet3Start 는 0 이상의 숫자나 null 만 허용한다", () => {
+    expect(validateSongs([{ ...base, snippet1Start: 12.5, snippet3Start: null }])).toBeNull();
+    expect(validateSongs([{ ...base, snippet1Start: -1 }])).toContain("snippet1Start");
+    expect(validateSongs([{ ...base, snippet3Start: -0.5 }])).toContain("snippet3Start");
+  });
+
+  test("songs.json 의 모든 곡에 두 키가 있고 현재 데이터가 유효하다", () => {
+    expect(validateSongs(allSongs as Song[])).toBeNull();
+    for (const song of allSongs) {
+      expect(song).toHaveProperty("snippet1Start");
+      expect(song).toHaveProperty("snippet3Start");
+    }
   });
 });

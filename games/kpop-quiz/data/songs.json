@@ -6,6 +6,8 @@
     "youtubeId": "qizghQs4K6E",
     "theme": "2000s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 58.6
   },
   {
@@ -15,6 +17,8 @@
     "youtubeId": "N9SNUWlsCVs",
     "theme": "2000s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 57.4
   },
   {
@@ -24,6 +28,8 @@
     "youtubeId": "c84VnpGFbrw",
     "theme": "2000s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 75.8
   },
   {
@@ -33,6 +39,8 @@
     "youtubeId": "bFVuop4le-k",
     "theme": "2000s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 29.5
   },
   {
@@ -42,6 +50,8 @@
     "youtubeId": "YhMFInv1Clc",
     "theme": "2000s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 73.4
   },
   {
@@ -51,6 +61,8 @@
     "youtubeId": "_rX0IoeMSoc",
     "theme": "2000s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 14.7
   },
   {
@@ -60,6 +72,8 @@
     "youtubeId": "AjTDxSzVCWE",
     "theme": "2000s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 68.8
   },
   {
@@ -69,6 +83,8 @@
     "youtubeId": "48ZRVhNl1wA",
     "theme": "2000s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 16.7
   },
   {
@@ -78,7 +94,9 @@
     "youtubeId": "4AgDYTuZWOw",
     "theme": "2010s",
     "startTime": 0,
-    "chorusStart": 40.6
+    "snippet1Start": null,
+    "snippet3Start": null,
+    "chorusStart": 66
   },
   {
     "id": "bigbang-fantastic-baby",
@@ -87,6 +105,8 @@
     "youtubeId": "oM4KBLQRCM8",
     "theme": "2010s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 78.9
   },
   {
@@ -96,6 +116,8 @@
     "youtubeId": "OIHlzvEKncQ",
     "theme": "2010s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 43.6
   },
   {
@@ -105,6 +127,8 @@
     "youtubeId": "qWvVSBUfLfE",
     "theme": "2010s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 47.8
   },
   {
@@ -114,6 +138,8 @@
     "youtubeId": "ZlqeBArFee0",
     "theme": "2010s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 59.4
   },
   {
@@ -123,6 +149,8 @@
     "youtubeId": "___h2czNhe0",
     "theme": "2010s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 59.6
   },
   {
@@ -132,6 +160,8 @@
     "youtubeId": "IPzouyj7FLA",
     "theme": "2010s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 50.1
   },
   {
@@ -141,6 +171,8 @@
     "youtubeId": "IfemyZEhfpY",
     "theme": "2010s",
     "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null,
     "chorusStart": 45.0
   },
   {
@@ -149,7 +181,9 @@
     "artist": "마커스워십",
     "youtubeId": "_NAzXDrSJGI",
     "theme": "ccm",
-    "startTime": 0
+    "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null
   },
   {
     "id": "anointing-jesus-you-alone",
@@ -157,7 +191,9 @@
     "artist": "어노인팅",
     "youtubeId": "6Kxjmn4rX-4",
     "theme": "ccm",
-    "startTime": 0
+    "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null
   },
   {
     "id": "anointing-still",
@@ -165,7 +201,9 @@
     "artist": "어노인팅",
     "youtubeId": "OU35xk_lKjw",
     "theme": "ccm",
-    "startTime": 0
+    "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null
   },
   {
     "id": "yeram-over-the-rainbow",
@@ -173,7 +211,9 @@
     "artist": "예람워십",
     "youtubeId": "sQN1IgfJXKs",
     "theme": "ccm",
-    "startTime": 0
+    "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null
   },
   {
     "id": "yeram-never-walk-alone",
@@ -181,7 +221,9 @@
     "artist": "예람워십",
     "youtubeId": "yf6RQOOwRPA",
     "theme": "ccm",
-    "startTime": 0
+    "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null
   },
   {
     "id": "anointing-here-i-am-to-worship",
@@ -189,7 +231,9 @@
     "artist": "어노인팅",
     "youtubeId": "5PLIZc2JGiQ",
     "theme": "ccm",
-    "startTime": 0
+    "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null
   },
   {
     "id": "anointing-majesty",
@@ -197,7 +241,9 @@
     "artist": "어노인팅",
     "youtubeId": "h807UffRUjQ",
     "theme": "ccm",
-    "startTime": 0
+    "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null
   },
   {
     "id": "anointing-wait-upon-the-lord",
@@ -205,6 +251,8 @@
     "artist": "어노인팅",
     "youtubeId": "95I0lfWezuY",
     "theme": "ccm",
-    "startTime": 0
+    "startTime": 0,
+    "snippet1Start": null,
+    "snippet3Start": null
   }
 ]
