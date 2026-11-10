@@ -6,12 +6,16 @@ import { resolveMissions, type Assignment, type Mission, type PublicSession } fr
 type HostScreenProps = {
   session: PublicSession;
   assignments: Record<string, Assignment>;
+  /** 기기가 등록된 이름 목록 */
+  registered: string[];
   missions: readonly Mission[];
   /** 저장된 명단이 현재 members.json 과 다른지 */
   membersChanged: boolean;
   /** 참여자가 휴대폰으로 접속할 주소 (화면에 크게 보여 준다) */
   participantUrl: string | null;
   onRedrawMissions: (name: string) => void;
+  /** 특정 참여자의 기기 등록을 풀어 준다 (휴대폰 교체 등) */
+  onReleaseDevice: (name: string) => void;
   onRedrawAll: () => void;
   onEndGame: () => void;
   onBack: () => void;
@@ -23,10 +27,12 @@ type PendingAction = "redrawAll" | "endGame" | null;
 export function HostScreen({
   session,
   assignments,
+  registered,
   missions,
   membersChanged,
   participantUrl,
   onRedrawMissions,
+  onReleaseDevice,
   onRedrawAll,
   onEndGame,
   onBack,
@@ -45,8 +51,8 @@ export function HostScreen({
 
       {participantUrl && (
         <p className="rounded-2xl bg-indigo-50 px-6 py-4 text-xl text-indigo-900">
-          📱 참여자 휴대폰 접속 주소: <span className="font-bold select-all">{participantUrl}</span>
-          <span className="ml-2 text-zinc-600">(같은 주소에서 자기 이름을 누르면 됩니다)</span>
+          📱 참여자 등록 주소: <span className="font-bold select-all">{participantUrl}</span>
+          <span className="ml-2 text-zinc-600">(휴대폰에서 자기 이름을 선택하면 등록됩니다)</span>
         </p>
       )}
 
@@ -61,10 +67,11 @@ export function HostScreen({
         <thead>
           <tr className="border-b-4 border-zinc-300 text-left text-zinc-600">
             <th className="px-4 py-3">이름</th>
+            <th className="px-4 py-3">기기</th>
             <th className="px-4 py-3">확인</th>
             <th className="px-4 py-3">마니또</th>
             <th className="px-4 py-3">미션</th>
-            <th className="px-4 py-3">미션 다시 뽑기</th>
+            <th className="px-4 py-3">조작</th>
           </tr>
         </thead>
         <tbody>
@@ -83,6 +90,9 @@ export function HostScreen({
                     <span className="ml-2 text-xl font-normal text-zinc-500">(사회자)</span>
                   )}
                 </td>
+                <td data-testid="host-row-device" className="px-4 py-4">
+                  {registered.includes(name) ? "📱 등록됨" : "⬜ 미등록"}
+                </td>
                 <td className="px-4 py-4">{session.viewed[name] ? "✅ 확인 완료" : "⬜ 미확인"}</td>
                 <td
                   data-testid="host-row-manito"
@@ -97,14 +107,24 @@ export function HostScreen({
                   />
                 </td>
                 <td className="px-4 py-4">
-                  <Button
-                    variant="secondary"
-                    aria-label={`${name} 미션 다시 뽑기`}
-                    disabled={isReveal}
-                    onClick={() => onRedrawMissions(name)}
-                  >
-                    🔄 다시 뽑기
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      aria-label={`${name} 미션 다시 뽑기`}
+                      disabled={isReveal}
+                      onClick={() => onRedrawMissions(name)}
+                    >
+                      🔄 미션 다시 뽑기
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      aria-label={`${name} 기기 초기화`}
+                      disabled={!registered.includes(name)}
+                      onClick={() => onReleaseDevice(name)}
+                    >
+                      📱 기기 초기화
+                    </Button>
+                  </div>
                 </td>
               </tr>
             );

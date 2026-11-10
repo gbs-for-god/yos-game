@@ -5,7 +5,8 @@
 ## 실행 환경
 
 - 진행자 노트북(데스크톱 브라우저, 1920×1080 기준) → 프로젝터/TV 출력
-- 기본은 서버 상태 없이 진행자 노트북 한 대로 동작한다. 참가자가 휴대폰으로 참여하는 게임(마니또 미션)만 서버 상태를 쓴다 (아래 "서버 상태" 참고)
+- 참가자는 각자 휴대폰으로 사이트에 접속해 **이름을 한 번 등록**하면(아래 "참여자 신원"), 이후 로그인 없이 어느 게임에서든 같은 사람으로 이어진다
+- 게임 자체는 기본적으로 서버 상태 없이 진행자 노트북 한 대로 동작한다. 참가자 휴대폰과 상태를 공유해야 하는 게임(마니또 미션)만 서버 상태를 쓴다 (아래 "서버 상태" 참고)
 - 모든 게임 페이지는 빌드 시 정적으로 생성된다 (`generateStaticParams`). `cacheComponents` 환경이라 `dynamicParams`는 쓸 수 없으며, 미등록 slug는 `notFound()`로 not-found UI를 보여준다 (스트리밍 특성상 상태 코드는 200일 수 있음)
 
 ## 디렉터리 구조
@@ -18,6 +19,8 @@ yos-game/
 │   ├── not-found.tsx         # 404 화면 (미등록 slug 포함)
 │   ├── globals.css           # Tailwind 진입점 + 테마 토큰
 │   ├── games/[slug]/page.tsx # 게임 공통 셸: 헤더 + 레지스트리에서 찾은 게임 렌더
+│   ├── join/page.tsx         # 참여자 등록 (명단에서 내 이름 선택)
+│   ├── api/participants/     # 참여자 등록 API → lib/participants/server/ 호출
 │   └── api/<slug>/…/route.ts # (서버 상태 게임만) 얇은 Route Handler → games/<slug>/server/ 호출
 ├── games/                    # 게임 모음 (기능 단위 폴더)
 │   ├── types.ts              # GameMeta 타입
@@ -29,7 +32,13 @@ yos-game/
 │       ├── client.ts         # (서버 상태 게임만) API 호출 + 폴링 훅
 │       └── server/           # (서버 상태 게임만) 저장소·요청 처리. 클라이언트에서 import 금지
 ├── components/ui/            # 2개 이상 게임이 쓰는 공용 UI (Button 등)
-├── lib/                      # 공용 유틸 (cn 등), 공용 훅은 lib/hooks/
+├── components/participant/   # 참여자 등록 화면, 상단 신원 띠
+├── lib/
+│   ├── cn.ts                 # 공용 유틸
+│   ├── hooks/                # 공용 훅 (useStoredValue: local/sessionStorage 를 React 상태처럼)
+│   ├── members/              # 사이트 공용 명단 (members.json) + 순수 헬퍼
+│   ├── participants/         # 참여자 신원: shared(타입) · client(훅/API 호출) · server/(저장소·핸들러)
+│   └── server/               # 서버 전용 공용: Redis 클라이언트, 사회자 비밀번호 확인
 ├── e2e/                      # Playwright 테스트 (*.spec.ts)
 ├── docs/                     # 하네스 문서
 └── public/                   # 정적 에셋 (게임별 에셋은 public/games/<slug>/)
@@ -62,16 +71,26 @@ flowchart LR
 - 상태 전이 함수는 `logic.ts`에 두어 `useReducer`의 reducer로 그대로 쓸 수 있게 한다
 - 새로고침 후에도 유지해야 하는 값(점수판 등)만 `localStorage` 사용 — 키는 `yos-game:<slug>:<key>` 형식
 
+## 참여자 신원 (사이트 공용)
+
+로그인 없이 "같은 사람이 같은 정보를 보게" 하기 위한 최소 장치다.
+
+- **명단**은 `lib/members/members.json` 하나뿐이다(사회자 1명 + 참여자). 모든 게임이 이 명단을 쓴다
+- 참가자는 `/join`에서 자기 이름을 고른다. 기기에 임의 토큰이 `localStorage`(`yos-game:participant`)로 저장되고, 서버 Redis 해시(`yos-game:participants`)에 이름 → 토큰이 기록된다. 같은 이름은 한 기기만 차지할 수 있다(`HSETNX`)
+- 이후 모든 페이지 상단 띠(`ParticipantBar`)에 이름이 보이고, 게임은 `useParticipantIdentity()`로 신원을 읽어 `x-participant-token` 헤더로 서버에 보낸다. 서버는 토큰으로 이름을 확정하므로 본인 것만 내려 줄 수 있다
+- 휴대폰 교체 등으로 막히면 사회자가 게임의 사회자 화면에서 "기기 초기화"로 해제한다. 등록이 풀린 기기는 다음 폴링에서 안내를 받고 다시 등록한다
+- 브라우저 데이터 삭제·시크릿 모드에서는 토큰이 사라지므로 사회자 해제가 필요하다
+
 ## 서버 상태 (기기 간 공유가 필요한 게임만)
 
 참가자가 각자 휴대폰으로 접속해 같은 게임을 봐야 할 때만 서버 상태를 둔다. 현재는 마니또 미션이 유일하다.
 
-- **저장소**: Upstash Redis. Vercel Marketplace 연동으로 붙이며 `KV_REST_API_URL`/`KV_REST_API_TOKEN`(또는 `UPSTASH_REDIS_REST_*`) 환경 변수를 읽는다. 변수가 없으면 서버 메모리 저장소로 대체되어 로컬 개발·E2E는 네트워크 없이 돌아간다 (`.env.example` 참고)
+- **저장소**: Upstash Redis(`lib/server/redis.ts`). Vercel Marketplace 연동으로 붙이며 `KV_REST_API_URL`/`KV_REST_API_TOKEN`(또는 `UPSTASH_REDIS_REST_*`) 환경 변수를 읽는다. 변수가 없으면 서버 메모리 저장소로 대체되어 로컬 개발·E2E는 네트워크 없이 돌아간다 (`.env.example` 참고)
 - **구조**: `app/api/<slug>/…/route.ts`는 요청을 `games/<slug>/server/handlers.ts`로 넘기기만 한다. 핸들러는 요청 검증 → `logic.ts` 순수 함수로 상태 전이 → `server/store.ts`에 기록 → 응답 순서로 동작한다
 - **동기화**: 서버 푸시 없이 클라이언트가 3초 간격으로 다시 읽는다 (`games/<slug>/client.ts`의 `usePolledState`). 동작(POST)의 응답으로 자기 화면은 즉시 갱신한다
 - **동시 쓰기**: 여러 기기가 동시에 쓰는 값(확인 여부 등)은 Redis 해시의 필드 단위로 써서 덮어쓰기를 피한다. 한 사람(사회자)만 바꾸는 값은 JSON 하나로 저장한다
-- **권한**: 로그인이 없으므로 사회자 동작은 `x-host-pin` 헤더의 비밀번호로 구분한다(`MANITO_HOST_PIN` 환경 변수, 없으면 데이터 파일 값). 참여자 휴대폰에는 본인 배정과 공개된 정보만 내려 준다
-- **클라이언트 경계**: `games/<slug>/server/`는 Route Handler에서만 import 한다. 클라이언트가 쓰는 타입은 `import type`으로만 가져온다
+- **권한**: 사회자 동작은 `x-host-pin` 헤더의 비밀번호로 구분한다(`lib/server/hostPin.ts`, `HOST_PIN` 환경 변수, 없으면 명단 파일 값). 참여자는 `x-participant-token`으로 구분하며 본인 것과 공개된 정보만 내려 준다
+- **클라이언트 경계**: `games/<slug>/server/`와 `lib/*/server/`, `lib/server/`는 Route Handler에서만 import 한다. 클라이언트가 쓰는 타입은 `import type`으로만 가져온다
 
 ## 하지 않는 것 (현 단계)
 

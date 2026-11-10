@@ -8,90 +8,61 @@ import { resolveMissions, type Assignment, type Mission, type PublicSession } fr
 type ParticipantScreenProps = {
   session: PublicSession;
   missions: readonly Mission[];
-  /** 본인 결과를 서버에서 받아 오면서 "확인했음"을 기록한다 */
-  onView: (name: string) => Promise<Assignment | null>;
+  /** 이 기기에 등록된 참여자 이름 */
+  me: string;
+  /** 내 배정 (서버가 토큰으로 확인해 내려 준 것) */
+  mine: Assignment | null;
+  /** "확인했음"을 서버에 기록한다 */
+  onView: () => Promise<unknown>;
   onOpenHost: () => void;
 };
 
-type Step =
-  | { kind: "list" }
-  | { kind: "confirm"; name: string }
-  | { kind: "loading"; name: string }
-  | { kind: "result"; name: string; assignment: Assignment };
-
-/** 참여자가 자기 이름을 눌러 마니또와 미션을 확인하는 화면 (노트북·휴대폰 공용) */
+/** 등록된 참여자가 자기 마니또와 미션을 확인하는 화면 (노트북·휴대폰 공용) */
 export function ParticipantScreen({
   session,
   missions,
+  me,
+  mine,
   onView,
   onOpenHost,
 }: ParticipantScreenProps) {
-  const [step, setStep] = useState<Step>({ kind: "list" });
+  const [showResult, setShowResult] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const viewedCount = session.memberNames.filter((n) => session.viewed[n]).length;
+  const alreadyViewed = session.viewed[me] ?? false;
 
-  async function view(name: string) {
-    setStep({ kind: "loading", name });
+  async function view() {
+    setLoading(true);
     setError(null);
     try {
-      const assignment = await onView(name);
-      if (!assignment) throw new Error("배정을 찾을 수 없어요.");
-      setStep({ kind: "result", name, assignment });
+      await onView();
+      setShowResult(true);
     } catch (err) {
-      setError(err instanceof Error && !("status" in err) ? err.message : describeError(err));
-      setStep({ kind: "confirm", name });
+      setError(describeError(err));
+    } finally {
+      setLoading(false);
     }
   }
 
-  if (step.kind === "confirm" || step.kind === "loading") {
-    const viewed = session.viewed[step.name] ?? false;
-    const loading = step.kind === "loading";
-    return (
-      <section className="flex flex-1 flex-col items-center justify-center gap-10 text-center">
-        <h2 className="text-5xl font-black md:text-6xl">{step.name}님 맞나요?</h2>
-        <p className="text-2xl text-zinc-600 md:text-3xl">
-          🙈 주변에 다른 사람이 화면을 보고 있지 않은지 확인하세요.
-        </p>
-        {error && (
-          <p role="alert" className="text-2xl font-bold text-red-600">
-            {error}
-          </p>
-        )}
-        <div className="flex flex-wrap items-center justify-center gap-6">
-          <Button size="lg" disabled={loading} onClick={() => view(step.name)}>
-            {loading ? "불러오는 중..." : viewed ? "내 마니또 다시 보기" : "내 마니또 뽑기!"}
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            disabled={loading}
-            onClick={() => setStep({ kind: "list" })}
-          >
-            취소
-          </Button>
-        </div>
-      </section>
-    );
-  }
-
-  if (step.kind === "result") {
-    const assigned = resolveMissions(step.assignment.missionIds, missions);
+  if (showResult && mine) {
+    const assigned = resolveMissions(mine.missionIds, missions);
     return (
       <section
         data-testid="participant-result"
         className="flex flex-1 flex-col items-center gap-8 text-center"
       >
-        <p className="text-2xl text-zinc-600 md:text-3xl">{step.name}님의 마니또는</p>
+        <p className="text-2xl text-zinc-600 md:text-3xl">{me}님의 마니또는</p>
         <p data-testid="manito-name" className="text-6xl font-black text-indigo-700 md:text-8xl">
-          {step.assignment.manito}
+          {mine.manito}
         </p>
         <p className="text-xl text-zinc-600 md:text-2xl">
-          {step.assignment.manito}님을 들키지 않고 몰래 섬겨 주세요. 아래 미션 {assigned.length}
-          가지를 수행하면 됩니다!
+          {mine.manito}님을 들키지 않고 몰래 섬겨 주세요. 아래 미션 {assigned.length}가지를 수행하면
+          됩니다!
         </p>
         <MissionList missions={assigned} className="max-w-7xl" />
-        <Button size="lg" onClick={() => setStep({ kind: "list" })}>
+        <Button size="lg" onClick={() => setShowResult(false)}>
           확인했어요 (화면 닫기)
         </Button>
       </section>
@@ -109,40 +80,45 @@ export function ParticipantScreen({
         </Button>
       </div>
 
-      <h2 className="text-center text-3xl font-black md:text-5xl">
-        이름을 눌러 내 마니또를 확인하세요
-      </h2>
+      <div className="flex flex-col items-center gap-6 rounded-3xl border-4 border-indigo-200 bg-indigo-50 px-6 py-10 text-center md:px-12">
+        <h2 className="text-4xl font-black md:text-6xl">{me}님, 반가워요!</h2>
+        <p className="text-xl text-zinc-600 md:text-2xl">
+          🙈 주변에 다른 사람이 화면을 보고 있지 않은지 확인하고 버튼을 누르세요.
+        </p>
+        {error && (
+          <p role="alert" className="text-2xl font-bold text-red-600">
+            {error}
+          </p>
+        )}
+        <Button size="lg" disabled={loading || !mine} onClick={view}>
+          {loading ? "불러오는 중..." : alreadyViewed ? "내 마니또 다시 보기" : "내 마니또 뽑기!"}
+        </Button>
+      </div>
 
-      <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
-        {session.memberNames.map((name) => {
-          const viewed = session.viewed[name] ?? false;
-          const isHost = name === session.hostName;
-          return (
-            <li key={name}>
-              <button
-                type="button"
-                onClick={() => setStep({ kind: "confirm", name })}
+      <div>
+        <h3 className="mb-3 text-xl font-bold text-zinc-600 md:text-2xl">확인 현황</h3>
+        <ul
+          data-testid="viewed-board"
+          className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5"
+        >
+          {session.memberNames.map((name) => {
+            const viewed = session.viewed[name] ?? false;
+            return (
+              <li
+                key={name}
                 className={cn(
-                  "flex w-full flex-col items-center gap-2 rounded-3xl border-4 px-4 py-6 transition-colors md:px-6 md:py-8",
-                  viewed
-                    ? "border-emerald-300 bg-emerald-50 hover:bg-emerald-100"
-                    : "border-indigo-200 bg-white hover:bg-indigo-50",
+                  "rounded-2xl border-2 px-4 py-3 text-center text-xl md:text-2xl",
+                  viewed ? "border-emerald-300 bg-emerald-50" : "border-zinc-200 bg-white",
+                  name === me && "ring-4 ring-indigo-300",
                 )}
               >
-                <span className="text-3xl font-black text-zinc-900 md:text-4xl">
-                  {name}
-                  {isHost && (
-                    <span className="ml-2 text-xl text-zinc-500 md:text-2xl">(사회자)</span>
-                  )}
-                </span>
-                <span className="text-lg whitespace-nowrap text-zinc-600 md:text-xl">
-                  {viewed ? "✅ 확인 완료" : "아직 안 봤어요"}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                <span className="font-bold">{name}</span>
+                <span className="ml-2 text-zinc-600">{viewed ? "✅" : "⬜"}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </section>
   );
 }

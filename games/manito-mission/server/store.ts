@@ -1,6 +1,6 @@
 /**
  * 세션 저장소 (서버 전용).
- * - 운영: Upstash Redis (Vercel Marketplace 연동 시 환경 변수가 자동 주입된다)
+ * - 운영: Upstash Redis (lib/server/redis 가 환경 변수로 클라이언트를 만든다)
  * - 로컬 개발 / E2E: 환경 변수가 없으면 서버 프로세스 메모리에 저장한다
  *
  * 세션(배정표)과 확인 기록을 다른 키에 두는 이유:
@@ -8,7 +8,8 @@
  * 확인 기록을 Redis 해시의 필드 단위로 쓰면 동시에 눌러도 서로 덮어쓰지 않는다.
  */
 
-import { Redis } from "@upstash/redis";
+import type { Redis } from "@upstash/redis";
+import { getRedis, memoized } from "@/lib/server/redis";
 import { parseSession, type Session, type ViewedMap } from "../logic";
 
 export type StoredState = {
@@ -89,31 +90,9 @@ class MemoryStore implements SessionStore {
   }
 }
 
-function readRedisEnv(): { url: string; token: string } | null {
-  // Vercel Marketplace 연동은 KV_* 이름으로, Upstash 콘솔 직접 연결은 UPSTASH_* 이름으로 주입된다
-  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
-  return url && token ? { url, token } : null;
-}
-
-/** 개발 서버의 HMR 로 모듈이 다시 로드되어도 메모리 저장소가 유지되도록 globalThis 에 보관한다 */
-const globalStore = globalThis as unknown as { __manitoMissionStore?: SessionStore };
-
 export function getSessionStore(): SessionStore {
-  if (globalStore.__manitoMissionStore) return globalStore.__manitoMissionStore;
-
-  const env = readRedisEnv();
-  let store: SessionStore;
-  if (env) {
-    store = new UpstashStore(new Redis({ ...env, automaticDeserialization: false }));
-  } else {
-    if (process.env.NODE_ENV === "production") {
-      console.warn(
-        "[manito-mission] Redis 환경 변수가 없어 메모리 저장소를 사용합니다. 서버가 재시작되면 게임 상태가 사라집니다.",
-      );
-    }
-    store = new MemoryStore();
-  }
-  globalStore.__manitoMissionStore = store;
-  return store;
+  return memoized("__manitoMissionStore", () => {
+    const redis = getRedis();
+    return redis ? new UpstashStore(redis) : new MemoryStore();
+  });
 }

@@ -4,15 +4,22 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createStorageStore } from "@/lib/hooks/useStoredValue";
+import { HOST_PIN_HEADER, PARTICIPANT_TOKEN_HEADER } from "@/lib/participants/shared";
 import type { Action } from "./logic";
 import type { StateResponse } from "./server/handlers";
 
 export type { StateResponse };
 
 export const API_URL = "/api/manito-mission/session";
-export const HOST_PIN_HEADER = "x-host-pin";
-/** 다른 기기의 변화(확인 완료, 공개 진행 등)를 다시 읽는 간격 */
-export const POLL_INTERVAL_MS = 3000;
+
+/** 평소: 다른 기기의 확인 완료 등은 10초 안에만 보이면 충분하다 (Redis 무료 한도 절약) */
+export const POLL_INTERVAL_MS = 10_000;
+/** 공개 단계: 참여자 휴대폰이 프로젝터 공개를 더 빨리 따라오도록 */
+export const REVEAL_POLL_INTERVAL_MS = 5_000;
+
+/** 사회자 비밀번호는 이 탭(sessionStorage)에만 기억한다. 공개 중 새로고침해도 다시 묻지 않기 위한 것 */
+export const hostPinStore = createStorageStore("session", "yos-game:manito-mission:host-pin");
 
 export class ApiError extends Error {
   constructor(
@@ -23,21 +30,21 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = {
-  /** 본인 배정(mine)을 함께 받고 싶은 멤버 이름 */
-  name?: string;
+export type RequestOptions = {
   /** 사회자 비밀번호. 맞으면 전체 배정표(assignments)를 받는다 */
   hostPin?: string;
+  /** 참여자 기기 토큰. 보내면 내 이름(me)과 내 배정(mine)을 받는다 */
+  participantToken?: string;
 };
 
-function buildUrl({ name }: RequestOptions): string {
-  return name ? `${API_URL}?name=${encodeURIComponent(name)}` : API_URL;
-}
-
-function buildHeaders({ hostPin }: RequestOptions, hasBody: boolean): HeadersInit {
+function buildHeaders(
+  { hostPin, participantToken }: RequestOptions,
+  hasBody: boolean,
+): HeadersInit {
   const headers: Record<string, string> = {};
   if (hasBody) headers["content-type"] = "application/json";
   if (hostPin !== undefined) headers[HOST_PIN_HEADER] = hostPin;
+  if (participantToken !== undefined) headers[PARTICIPANT_TOKEN_HEADER] = participantToken;
   return headers;
 }
 
@@ -54,7 +61,7 @@ async function parse(response: Response): Promise<StateResponse> {
 }
 
 export async function fetchState(options: RequestOptions = {}): Promise<StateResponse> {
-  const response = await fetch(buildUrl(options), {
+  const response = await fetch(API_URL, {
     headers: buildHeaders(options, false),
     cache: "no-store",
   });
@@ -62,7 +69,7 @@ export async function fetchState(options: RequestOptions = {}): Promise<StateRes
 }
 
 export async function sendAction(action: Action, options: RequestOptions = {}) {
-  const response = await fetch(buildUrl(options), {
+  const response = await fetch(API_URL, {
     method: "POST",
     headers: buildHeaders(options, true),
     body: JSON.stringify(action),
@@ -82,22 +89,22 @@ export type PolledState = {
   error: string | null;
   refresh: () => Promise<void>;
   /** 동작을 보내고 응답으로 상태를 바로 갱신한다. 실패하면 ApiError 를 던진다 */
-  act: (action: Action, options?: { name?: string }) => Promise<StateResponse>;
+  act: (action: Action) => Promise<StateResponse>;
 };
 
 /**
  * 세션 상태를 주기적으로 읽어 오는 훅.
- * 오래된 응답이 최신 응답을 덮어쓰지 않도록 요청 순번을 기록한다.
+ * 오래된 응답이 최신 응답을 덮어쓰지 않도록 요청 순번을 기록하고, 탭이 숨겨져 있으면 읽지 않는다.
  */
 export function usePolledState(
   options: RequestOptions,
+  intervalMs: number,
   onUnauthorized?: () => void,
-  intervalMs: number = POLL_INTERVAL_MS,
 ): PolledState {
   const [data, setData] = useState<StateResponse | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const latestRequest = useRef(0);
-  const { name, hostPin } = options;
+  const { hostPin, participantToken } = options;
 
   const run = useCallback(
     async (request: () => Promise<StateResponse>) => {
@@ -118,13 +125,12 @@ export function usePolledState(
   );
 
   const refresh = useCallback(async () => {
-    await run(() => fetchState({ name, hostPin })).catch(() => undefined);
-  }, [run, name, hostPin]);
+    await run(() => fetchState({ hostPin, participantToken })).catch(() => undefined);
+  }, [run, hostPin, participantToken]);
 
   const act = useCallback(
-    (action: Action, actOptions: { name?: string } = {}) =>
-      run(() => sendAction(action, { name: actOptions.name ?? name, hostPin })),
-    [run, name, hostPin],
+    (action: Action) => run(() => sendAction(action, { hostPin, participantToken })),
+    [run, hostPin, participantToken],
   );
 
   useEffect(() => {

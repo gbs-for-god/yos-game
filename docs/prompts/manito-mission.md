@@ -84,3 +84,32 @@
 - `pnpm verify` 통과 (E2E 12개, 그중 휴대폰 컨텍스트 ↔ 노트북 동기화 3개)
 - 개발 서버에서 노트북(1920×1080)·휴대폰(390×844) 스크린샷으로 레이아웃과 "확인 완료" 동기화 확인
 - Upstash 실연결은 Vercel 배포 후 확인 필요 (로컬은 메모리 저장소)
+
+## 2026-11-10 — 참여자 신원(사이트 공용) 기반으로 전환, 폴링 10초/5초
+
+### 요청 프롬프트
+
+> 화면이 꺼지거나 다른 앱으로 넘어가거나 다시 재접속해도 이전 상태를 기억할 수 있는 거지? 꼭 같은 사람이 같은 정보를 읽어야만 해
+
+> 마니또만이 아니라 저 웹 사이트를 접속할 때 참여자의 이름을 등록하여 사이트 전체에서 사용할 수 있도록 하고 토큰을 저장하여 웹사이트를 재접속해도 로그인 없이도 참여자의 상태를 기억할 수 있게 바꿔
+
+(함께 반영) "20명이서 5시간 정도 사용할 건데 10초면 괜찮아?" → 폴링 평소 10초, 공개 단계 5초.
+
+### 구현 결정
+
+- 신원 계층 자체는 사이트 공용으로 만들었다 → [participant-identity.md](participant-identity.md). 여기서는 게임 쪽 변화만 적는다.
+- **참여자 화면**: 명단에서 이름을 고르는 UI 를 없애고, 등록된 기기(`useParticipantIdentity`)의 이름으로 "OOO님, 반가워요! → 내 마니또 뽑기!"만 보여 준다. 미등록 기기에는 `/join` 안내와 확인 현황판만 보인다. 서버는 `x-participant-token`으로 본인을 확정하므로 남의 결과를 볼 수 없다.
+- **`viewed` 동작**은 이름을 받지 않고 토큰으로 판단한다. 응답에 `me`(토큰의 이름, 해제되면 null)와 `registered`(등록된 이름 목록)를 추가했다.
+- **사회자 화면**에 "기기" 열(등록됨/미등록)과 "기기 초기화" 버튼을 추가했다. 접속 주소는 `/join`으로 바뀌었다.
+- **공개 화면**은 등록 여부와 무관하게 모든 기기에 보인다(공개 결과는 모두가 봐야 하므로).
+- 명단 파일이 `lib/members/`로 이동해 게임의 `data/members.json`은 삭제했다. 사회자 비밀번호 저장(sessionStorage)은 공용 훅 `useStoredValue`로 바꿨다.
+
+### 변경 파일
+
+- `games/manito-mission/logic.ts`, `client.ts`, `Game.tsx`, `ParticipantScreen.tsx`, `HostScreen.tsx`, `server/store.ts`, `server/handlers.ts`, `README.md`
+- 삭제: `games/manito-mission/data/members.json`, `games/manito-mission/hostPinStorage.ts`
+- `e2e/manito-mission.spec.ts` — 휴대폰 컨텍스트가 `/join`으로 등록한 뒤 진행하도록 재작성
+
+### 검증
+
+- `pnpm verify` 통과 (마니또 E2E 8개 포함 16개)

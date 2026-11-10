@@ -3,11 +3,13 @@
  * React/브라우저/서버 API에 의존하지 않도록 유지한다 (UI는 화면 컴포넌트, 저장은 server/ 가 담당).
  *
  * 용어
- * - 멤버(member): 게임에 참여하는 모든 사람 = 사회자 1명 + 참여자 여러 명
+ * - 멤버(member): 게임에 참여하는 모든 사람 = 사회자 1명 + 참여자 여러 명 (명단은 lib/members)
  * - 마니또(manito): 내가 몰래 섬겨야 하는 상대. 모든 멤버가 서로 다른 한 사람을 마니또로 갖는다
  * - 세션(session): 한 번의 게임 전체 배정. 서버(Redis)에 저장되어 모든 기기가 같은 세션을 본다
  * - 확인(viewed): 멤버가 자기 결과를 봤는지. 세션과 별도로 저장해 여러 기기가 동시에 기록해도 안전하다
  */
+
+import { listMemberNames, type Members } from "@/lib/members";
 
 export type Mission = {
   id: string;
@@ -16,16 +18,6 @@ export type Mission = {
   description: string;
   /** 미션 수행 기한 (예: "오늘 모임 끝까지") */
   timeLimit: string;
-};
-
-/** data/members.json 의 형태 */
-export type Members = {
-  /** 사회자 비밀번호 기본값. 운영 환경에서는 MANITO_HOST_PIN 환경 변수로 덮어쓴다 */
-  hostPin: string;
-  /** 사회자(관리자) 이름. 사회자도 게임에 참여한다 */
-  host: string;
-  /** 참여자 이름 목록 (사회자 제외) */
-  participants: string[];
 };
 
 export type Assignment = {
@@ -74,27 +66,12 @@ export type HostAction =
   | { type: "startReveal" }
   | { type: "revealNext" };
 
-/** 누구나 보낼 수 있는 동작 */
-export type ParticipantAction = { type: "viewed"; name: string };
+/** 등록된 참여자가 토큰과 함께 보내는 동작 (누구인지는 서버가 토큰으로 판단) */
+export type ParticipantAction = { type: "viewed" };
 
 export type Action = HostAction | ParticipantAction;
 
 export const MISSIONS_PER_MEMBER = 3;
-export const MIN_MEMBERS = 2;
-
-/** 사회자를 마지막에 두어 공개 때 가장 큰 긴장감을 만든다. */
-export function listMemberNames(members: Members): string[] {
-  return [...members.participants, members.host];
-}
-
-/** 명단 유효성 검사. 문제가 없으면 null, 있으면 사용자에게 보여줄 메시지를 돌려준다. */
-export function validateMembers(members: Members): string | null {
-  const names = listMemberNames(members).map((n) => n.trim());
-  if (names.some((n) => n.length === 0)) return "이름이 비어 있는 항목이 있어요.";
-  if (new Set(names).size !== names.length) return "같은 이름이 두 번 이상 있어요.";
-  if (names.length < MIN_MEMBERS) return `게임을 하려면 최소 ${MIN_MEMBERS}명이 필요해요.`;
-  return null;
-}
 
 /** Fisher–Yates 셔플. 원본은 바꾸지 않는다. */
 export function shuffle<T>(items: readonly T[], random: () => number): T[] {
@@ -300,9 +277,9 @@ export function parseAction(value: unknown): Action | null {
     case "redrawAll":
     case "startReveal":
     case "revealNext":
+    case "viewed":
       return { type: value.type };
     case "redrawMissions":
-    case "viewed":
       return typeof value.name === "string" ? { type: value.type, name: value.name } : null;
     default:
       return null;
