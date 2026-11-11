@@ -361,6 +361,7 @@ test.describe("노래 맞추기", () => {
       ["2000년대", "2000s"],
       ["2010년대", "2010s"],
       ["CCM", "ccm"],
+      ["최신가요", "latest"],
     ]) {
       await expect(page.getByRole("button", { name: new RegExp(label) })).toContainText(
         `${songsOf(theme).length}곡 · 공개 0곡`,

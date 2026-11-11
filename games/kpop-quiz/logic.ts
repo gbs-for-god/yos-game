@@ -14,6 +14,7 @@ export const THEMES = [
   { id: "2000s", label: "2000년대", emoji: "🎤" },
   { id: "2010s", label: "2010년대", emoji: "🎧" },
   { id: "ccm", label: "CCM", emoji: "🙏" },
+  { id: "latest", label: "최신가요", emoji: "🔥" },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];

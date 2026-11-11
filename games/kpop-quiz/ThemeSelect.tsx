@@ -19,7 +19,7 @@ export function ThemeSelect({ state, onSelect }: ThemeSelectProps) {
         <p className="mt-4 text-2xl text-zinc-400">고른 테마의 노래로 게임을 진행해요.</p>
       </div>
 
-      <ul className="grid w-full max-w-6xl gap-6 md:grid-cols-3">
+      <ul className="grid w-full max-w-7xl gap-6 md:grid-cols-2 lg:grid-cols-4">
         {THEMES.map(({ id, label, emoji }) => {
           const total = songsOfTheme(SONGS, id).length;
           const revealed = state.quizzes[id].revealed.length;
