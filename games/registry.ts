@@ -8,6 +8,8 @@ import { meta as manitoMissionMeta } from "@/games/manito-mission/meta";
 import KpopQuizGame from "@/games/kpop-quiz/Game";
 import { HostPanel as KpopQuizHostPanel } from "@/games/kpop-quiz/HostPanel";
 import { meta as kpopQuizMeta } from "@/games/kpop-quiz/meta";
+import PersonQuizGame from "@/games/person-quiz/Game";
+import { meta as personQuizMeta } from "@/games/person-quiz/meta";
 
 export type GameEntry = {
   meta: GameMeta;
@@ -24,6 +26,7 @@ export const games: GameEntry[] = [
   { meta: numberDrawMeta, Component: NumberDrawGame },
   { meta: manitoMissionMeta, Component: ManitoMissionGame },
   { meta: kpopQuizMeta, Component: KpopQuizGame, HostPanel: KpopQuizHostPanel },
+  { meta: personQuizMeta, Component: PersonQuizGame },
 ];
 
 export function getGame(slug: string): GameEntry | undefined {
