@@ -23,15 +23,31 @@ test.describe("인물 맞추기", () => {
     await seedIdentity(page.context(), { name: randomName(), token: crypto.randomUUID() });
   });
 
-  test("인물 데이터는 120명이고 사진이 없어도 자리표시 이미지가 나온다", async ({ page }) => {
+  test("인물 데이터는 120명이고 실제 사진 120장이 모두 존재한다", async ({ page, request }) => {
     expect(validatePeople(people)).toBeNull();
     expect(validatePeople(people.slice(1))).not.toBeNull();
+
+    for (const person of people) {
+      const response = await request.get(person.image);
+      expect(response.ok(), `${person.id} 사진 없음: ${person.image}`).toBe(true);
+    }
 
     await login(page);
     await page.getByTestId("disciple-peter").click();
     const image = page.getByRole("img").first();
     await expect(image).toBeVisible();
-    // 실제 사진 파일이 없는 환경에서도 자리표시 이미지(SVG)로 바뀐다
+    await expect(image).toHaveAttribute("src", /^\/games\/person-quiz\/images\/person_\d{3}\.jpg$/);
+    await expect
+      .poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+      .toBeGreaterThan(0);
+  });
+
+  test("사진을 불러오지 못하면 자리표시 이미지가 나온다", async ({ page }) => {
+    await page.route("**/games/person-quiz/images/**", (route) => route.abort());
+    await login(page);
+    await page.getByTestId("disciple-peter").click();
+    const image = page.getByRole("img").first();
+    await expect(image).toBeVisible();
     await expect(image).toHaveAttribute("src", /^data:image\/svg\+xml/);
   });
 

@@ -17,15 +17,16 @@
 - `Game.tsx` 사회자 로그인 · `DiscipleMenu.tsx` 메인 메뉴 · `GroupScreen.tsx` 퀴즈/종료/결과 · `PersonImage.tsx` 사진(실패 시 자리표시)
 - `data/people.json` — 인물 120명
 
-## 인물 데이터 넣기
+## 인물 데이터
 
 `data/people.json` 은 **정확히 120명**이어야 한다(아니면 화면에 오류가 뜬다).
 
 ```json
-{ "id": "person-001", "name": "인물 001", "image": "/games/person-quiz/images/person_001.jpg" }
+{ "id": "person-001", "name": "아이유", "image": "/games/person-quiz/images/person_001.jpg" }
 ```
 
-- `name` 을 실제 정답 이름으로 바꾼다. (지금은 `인물 001` 같은 임시 이름)
-- 사진은 `public/games/person-quiz/images/person_001.jpg` ~ `person_120.jpg` 로 넣는다. 파일이 없으면 번호가 적힌 자리표시 이미지가 대신 나온다.
+- 현재 120명: 가수·배우·유명인사·정치인·기업인·운동선수·해외인물·역사인물 각 15명. 분야가 번갈아 나오도록 배치했다(001=가수, 002=배우, …).
+- 사진은 `public/games/person-quiz/images/person_001.jpg` ~ `person_120.jpg`. 위키미디어 커먼즈 사진이며 출처·라이선스는 [CREDITS.md](CREDITS.md) 에 있다. 파일이 없으면 번호가 적힌 자리표시 이미지가 대신 나온다.
+- 사진을 바꿀 때는 이미지에 이름이 적혀 있지 않은지(동상 받침, 자막 등) 확인한다.
 - `image` 에는 `https://...` 같은 외부 주소도 쓸 수 있다.
 - 어느 제자에 어떤 사진이 가는지는 처음엔 데이터 순서(10장씩), 리셋 후엔 무작위다. 제자는 사진 묶음 이름일 뿐 정답과 무관하다.
