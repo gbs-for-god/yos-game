@@ -16,12 +16,13 @@ type HostScreenProps = {
   onRedrawMissions: (name: string) => void;
   /** 특정 참여자의 기기 등록을 풀어 준다 (휴대폰 교체 등) */
   onReleaseDevice: (name: string) => void;
+  onReleaseAll: () => void;
   onRedrawAll: () => void;
   onEndGame: () => void;
   onBack: () => void;
 };
 
-type PendingAction = "redrawAll" | "endGame" | null;
+type PendingAction = "redrawAll" | "endGame" | "releaseAll" | null;
 
 /** 사회자 전용: 모든 참여자의 마니또·미션을 한눈에 보고 다시 뽑기/게임 종료를 조작하는 화면 */
 export function HostScreen({
@@ -33,6 +34,7 @@ export function HostScreen({
   participantUrl,
   onRedrawMissions,
   onReleaseDevice,
+  onReleaseAll,
   onRedrawAll,
   onEndGame,
   onBack,
@@ -143,7 +145,9 @@ export function HostScreen({
           <p id="pending-message" className="text-3xl font-bold text-red-800">
             {pending === "redrawAll"
               ? "정말 전체를 다시 뽑을까요? 모든 사람의 마니또와 미션이 새로 정해집니다."
-              : "게임을 종료하고 공개 화면으로 넘어갈까요? 이후에는 미션을 다시 뽑을 수 없습니다."}
+              : pending === "releaseAll"
+                ? "모든 참가자의 등록을 초기화할까요? 모두 다시 이름과 입장코드를 입력해야 합니다."
+                : "게임을 종료하고 공개 화면으로 넘어갈까요? 이후에는 미션을 다시 뽑을 수 없습니다."}
           </p>
           <div className="flex items-center gap-6">
             <Button
@@ -151,11 +155,16 @@ export function HostScreen({
               className="bg-red-600 hover:bg-red-500"
               onClick={() => {
                 if (pending === "redrawAll") onRedrawAll();
+                else if (pending === "releaseAll") onReleaseAll();
                 else onEndGame();
                 setPending(null);
               }}
             >
-              {pending === "redrawAll" ? "네, 전체 다시 뽑기" : "네, 게임 종료"}
+              {pending === "redrawAll"
+                ? "네, 전체 다시 뽑기"
+                : pending === "releaseAll"
+                  ? "네, 참가자 초기화"
+                  : "네, 게임 종료"}
             </Button>
             <Button variant="secondary" size="lg" onClick={() => setPending(null)}>
               취소
@@ -170,6 +179,9 @@ export function HostScreen({
         </Button>
         <Button variant="secondary" size="lg" onClick={() => setPending("redrawAll")}>
           🔄 전체 다시 뽑기
+        </Button>
+        <Button variant="secondary" size="lg" onClick={() => setPending("releaseAll")}>
+          🧹 전체 참가자 초기화
         </Button>
         {!isReveal && (
           <Button size="lg" onClick={() => setPending("endGame")}>

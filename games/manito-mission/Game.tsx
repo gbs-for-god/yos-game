@@ -97,6 +97,16 @@ export default function ManitoMissionGame() {
         membersChanged={!hasSameMembers(session, registered)}
         participantUrl={participantUrl}
         onRedrawMissions={(name) => safely(() => act({ type: "redrawMissions", name }))}
+        onReleaseAll={() =>
+          safely(async () => {
+            if (hostPin)
+              await fetch("/api/participants", {
+                method: "DELETE",
+                headers: { "x-host-pin": hostPin },
+              });
+            await refresh();
+          })
+        }
         onReleaseDevice={(name) =>
           safely(async () => {
             if (hostPin) await releaseParticipantByHost(name, hostPin);
