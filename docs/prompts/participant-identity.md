@@ -132,3 +132,22 @@
 ### 변경 파일
 
 - `lib/server/hostPin.ts`, `e2e/helpers.ts`, `.env.example`, `docs/ARCHITECTURE.md`, `games/manito-mission/README.md`
+
+## 2026-11-13 — 초기화된 기기의 상단 등록 버튼
+
+### 요청 프롬프트
+
+> 화면 상단에 나타나는 "홍길동님으로 참여 중"도 기기가 초기화되면 참여자 등록 버튼으로 바꿔
+
+### 구현 결정
+
+- 기기 신원이 없거나 서버에서 해제된 경우 상단 참가자 띠에 `/join` 링크를 표시한다.
+- 등록된 경우에는 기존 이름 표시와 이름 변경 설정 동작을 유지한다.
+
+### 변경 파일
+
+- `components/participant/ParticipantBar.tsx`
+
+### 검증
+
+- 정적 검사 결과는 작업 응답에 기록한다.

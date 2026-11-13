@@ -12,10 +12,22 @@ export function ParticipantBar() {
   // 페이지를 옮길 때마다 최신 설정을 다시 읽는다 (사회자가 이름 변경을 켜고 끈 것을 반영)
   const settings = useSiteSettings(pathname ?? "");
 
-  // 미등록 기기는 ParticipantGate 가 /join 으로 보내므로 여기서는 등록된 경우만 보여 준다
-  if (pathname === "/join" || !identity) return null;
+  if (pathname === "/join" || identity === undefined) return null;
 
   const next = pathname && pathname !== "/" ? `?next=${encodeURIComponent(pathname)}` : "";
+
+  if (identity === null) {
+    return (
+      <div className="flex items-center justify-end border-b border-zinc-200 bg-white px-6 py-2 text-xl">
+        <Link
+          href={`/join${next}`}
+          className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white hover:bg-indigo-500"
+        >
+          👋 참여자 등록
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 border-b border-zinc-200 bg-white px-6 py-2 text-xl">
