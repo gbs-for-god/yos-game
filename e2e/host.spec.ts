@@ -71,6 +71,18 @@ test.describe("사회자 메뉴", () => {
     await other.close();
   });
 
+  test("잠긴 상태의 사회자 메뉴에서 메인 화면으로 돌아갈 수 있다", async ({ page, request }) => {
+    const me = await registerViaApi(request, randomName("참가"));
+    await seedIdentity(page.context(), me);
+    await page.goto("/host");
+    await expect(page.getByRole("heading", { name: "🔒 사회자 메뉴" })).toBeVisible();
+    await expect(page.getByLabel("사회자 비밀번호")).toBeVisible();
+
+    await page.getByRole("link", { name: "← 메인으로" }).click();
+    await expect(page).toHaveURL("/");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("교회 레크레이션 게임");
+  });
+
   test("비밀번호 없이는 설정을 바꿀 수 없고, 잠그면 다시 비밀번호를 묻는다", async ({
     page,
     request,

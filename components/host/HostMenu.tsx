@@ -25,7 +25,17 @@ export function HostMenu({ children }: { children?: ReactNode }) {
     return <p className="text-center text-2xl text-zinc-500">불러오는 중...</p>;
   }
   if (storedPin === null) {
-    return <HostPinForm title="🔒 사회자 메뉴" />;
+    // 잠긴 상태에서도 메인 화면으로 돌아갈 수 있어야 한다
+    return (
+      <div className="flex flex-1 flex-col gap-6">
+        <div>
+          <Link href="/" className="text-xl text-zinc-500 underline hover:text-zinc-900">
+            ← 메인으로
+          </Link>
+        </div>
+        <HostPinForm title="🔒 사회자 메뉴" />
+      </div>
+    );
   }
   return <Settings pin={storedPin}>{children}</Settings>;
 }
