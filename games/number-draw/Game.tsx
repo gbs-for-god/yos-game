@@ -1,12 +1,32 @@
 "use client";
 
 import { useState } from "react";
+import { HostPinForm } from "@/components/host/HostPinForm";
 import { Button } from "@/components/ui/Button";
+import { useVerifiedHostPin } from "@/lib/host/client";
 import { createDrawState, drawNext } from "./logic";
 
 const DEFAULT_MAX = 30;
 
+/** 사회자가 비밀번호로 로그인해야만 번호를 뽑을 수 있다 */
 export default function NumberDrawGame() {
+  const hostPin = useVerifiedHostPin();
+
+  if (hostPin === undefined) {
+    return <p className="m-auto text-2xl text-zinc-500">불러오는 중...</p>;
+  }
+  if (hostPin === null) {
+    return (
+      <HostPinForm
+        title="🔒 사회자 로그인"
+        description="사회자만 이 게임을 진행할 수 있어요. 비밀번호를 입력하세요."
+      />
+    );
+  }
+  return <NumberDrawBoard />;
+}
+
+function NumberDrawBoard() {
   const [maxInput, setMaxInput] = useState(String(DEFAULT_MAX));
   const [state, setState] = useState(() => createDrawState(DEFAULT_MAX));
 
