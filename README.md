@@ -8,6 +8,7 @@
 pnpm install
 pnpm exec playwright install chromium   # E2E 테스트용 (최초 1회)
 pnpm dev                                # http://localhost:3000
+# 휴대폰: 같은 Wi-Fi에서 http://<노트북의 로컬 IP>:3000 접속
 ```
 
 ## 스크립트
