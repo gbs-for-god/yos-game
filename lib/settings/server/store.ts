@@ -3,26 +3,30 @@
  */
 
 import { getRedis, memoized } from "@/lib/server/redis";
-import { DEFAULT_SETTINGS, type SiteSettings } from "../shared";
+import { DEFAULT_SETTINGS, type HostSettings } from "../shared";
 
 export interface SettingsStore {
-  read(): Promise<SiteSettings>;
-  write(settings: SiteSettings): Promise<void>;
+  read(): Promise<HostSettings>;
+  write(settings: HostSettings): Promise<void>;
 }
 
 const KEY = "yos-game:settings";
 
 /** 저장된 알 수 없는 값을 설정으로 안전하게 바꾼다. 빠진 항목은 기본값 */
-function parseSettings(raw: unknown): SiteSettings {
+function parseSettings(raw: unknown): HostSettings {
   try {
     const value: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
     if (typeof value === "object" && value !== null && "allowRename" in value) {
-      return { allowRename: value.allowRename === true };
+      return {
+        allowRename: value.allowRename === true,
+        entryCode:
+          "entryCode" in value && typeof value.entryCode === "string" ? value.entryCode : "",
+      };
     }
   } catch {
     // 손상된 값은 기본값으로 취급한다
   }
-  return { ...DEFAULT_SETTINGS };
+  return { ...DEFAULT_SETTINGS, entryCode: "" };
 }
 
 class RedisSettingsStore implements SettingsStore {
@@ -30,17 +34,17 @@ class RedisSettingsStore implements SettingsStore {
   async read() {
     return parseSettings(await this.redis.get<string>(KEY));
   }
-  async write(settings: SiteSettings) {
+  async write(settings: HostSettings) {
     await this.redis.set(KEY, JSON.stringify(settings));
   }
 }
 
 class MemorySettingsStore implements SettingsStore {
-  private settings: SiteSettings = { ...DEFAULT_SETTINGS };
+  private settings: HostSettings = { ...DEFAULT_SETTINGS, entryCode: "" };
   async read() {
     return { ...this.settings };
   }
-  async write(settings: SiteSettings) {
+  async write(settings: HostSettings) {
     this.settings = { ...settings };
   }
 }

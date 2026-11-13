@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { MAX_ENTRY_CODE_LENGTH } from "@/lib/settings/shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
@@ -23,6 +25,7 @@ export function JoinScreen() {
 
   const settings = useSiteSettings();
   const [name, setName] = useState("");
+  const [entryCode, setEntryCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -48,8 +51,8 @@ export function JoinScreen() {
       setError(invalid);
       return;
     }
-    if (identity?.name === normalized) {
-      router.push(next);
+    if (!entryCode.trim()) {
+      setError("입장코드를 입력해 주세요.");
       return;
     }
 
@@ -57,13 +60,15 @@ export function JoinScreen() {
     setError(null);
     try {
       const token = identity?.token ?? createToken();
-      await registerParticipant({ name: normalized, token });
+      await registerParticipant({ name: normalized, token }, entryCode);
       // 새 이름 등록에 성공한 뒤에 이전 이름을 푼다 (실패하면 이전 이름이 그대로 남는다)
-      if (identity) await releaseParticipant(identity).catch(() => undefined);
+      if (identity && identity.name !== normalized)
+        await releaseParticipant(identity).catch(() => undefined);
       save({ name: normalized, token });
       // 이 페이지를 떠났다가 돌아오면 Next.js 가 React 상태를 복원하므로 진행 표시와 입력값을 먼저 풀어 둔다
       setBusy(false);
       setName("");
+      setEntryCode("");
       router.push(next);
     } catch (err) {
       setError(describeParticipantError(err));
@@ -125,6 +130,19 @@ export function JoinScreen() {
         <p className="text-lg text-zinc-500">
           {MAX_NAME_LENGTH}자 이하 · 다른 사람과 같은 이름은 쓸 수 없어요.
         </p>
+        <label htmlFor="entry-code-input" className="text-2xl font-bold">
+          입장코드
+        </label>
+        <input
+          id="entry-code-input"
+          type="password"
+          value={entryCode}
+          onChange={(event) => setEntryCode(event.target.value)}
+          maxLength={MAX_ENTRY_CODE_LENGTH}
+          autoComplete="off"
+          placeholder="사회자가 안내한 입장코드"
+          className="rounded-2xl border-4 border-indigo-200 bg-white px-6 py-4 text-3xl font-bold focus:border-indigo-500 focus:outline-none"
+        />
         {error && (
           <p
             role="alert"
@@ -138,6 +156,9 @@ export function JoinScreen() {
         </Button>
       </form>
 
+      <Link href="/host" className="text-xl text-zinc-600 underline">
+        🔒 사회자 메뉴
+      </Link>
       {identity && (
         <Button variant="secondary" onClick={() => router.push(next)}>
           그대로 두고 돌아가기

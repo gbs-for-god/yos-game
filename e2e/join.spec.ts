@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { fillJoinForm, HOST_HEADERS, resetParticipants, setAllowRename } from "./helpers";
+import {
+  ENTRY_CODE,
+  fillJoinForm,
+  HOST_HEADERS,
+  resetParticipants,
+  setAllowRename,
+} from "./helpers";
 
 /** 참가자 등록은 서버(메모리 저장소)에 남아 테스트끼리 공유되므로 직렬로 실행하고 매번 초기화한다. */
 test.describe.configure({ mode: "serial" });
@@ -70,6 +76,7 @@ test.describe("참가자 등록", () => {
     const otherPage = await other.newPage();
     await otherPage.goto("/");
     await otherPage.getByLabel("참가자명").fill("이믿음");
+    await otherPage.getByLabel("입장코드", { exact: true }).fill(ENTRY_CODE);
     await otherPage.getByRole("button", { name: "참여하기" }).click();
     await expect(
       otherPage.getByRole("alert").filter({ hasText: "이미 다른 기기에서 등록한 이름이에요." }),
@@ -129,6 +136,7 @@ test.describe("참가자 등록", () => {
 
     await otherPage.getByRole("link", { name: "변경" }).click();
     await otherPage.getByLabel("참가자명").fill("최사랑");
+    await otherPage.getByLabel("입장코드", { exact: true }).fill(ENTRY_CODE);
     await otherPage.getByRole("button", { name: "이 이름으로 바꾸기" }).click();
     await expect(
       otherPage.getByRole("alert").filter({ hasText: "이미 다른 기기에서 등록한 이름이에요." }),
@@ -137,4 +145,41 @@ test.describe("참가자 등록", () => {
     await expect(otherPage.getByText("지금은 박소망님으로 등록되어 있어요.")).toBeVisible();
     await other.close();
   });
+});
+
+test("입장코드 누락·오류는 등록과 이름 변경을 막고 올바른 코드만 허용한다", async ({
+  page,
+  request,
+}) => {
+  await resetParticipants(request);
+  await setAllowRename(request, true);
+  await page.goto("/join");
+  await page.getByLabel("참가자명").fill("입장테스트");
+  await page.getByRole("button", { name: "참여하기" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "입장코드를 입력해 주세요." }),
+  ).toBeVisible();
+  await page.getByLabel("입장코드", { exact: true }).fill("wrong");
+  await page.getByRole("button", { name: "참여하기" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "입장코드가 올바르지 않아요." }),
+  ).toBeVisible();
+  await fillJoinForm(page, "입장테스트", "/");
+  await page.getByRole("link", { name: "변경", exact: true }).click();
+  await page.getByLabel("참가자명").fill("변경테스트");
+  await page.getByLabel("입장코드", { exact: true }).fill("wrong");
+  await page.getByRole("button", { name: "이 이름으로 바꾸기" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "입장코드가 올바르지 않아요." }),
+  ).toBeVisible();
+  const token = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("yos-game:participant") ?? "{}").token as string,
+  );
+  for (const entryCode of [undefined, "wrong"]) {
+    const response = await request.post("/api/participants", {
+      data: { name: "우회이름", token, entryCode },
+    });
+    expect(response.status()).toBe(403);
+  }
+  await fillJoinForm(page, "변경테스트", "/");
 });

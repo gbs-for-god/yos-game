@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { HOST_PIN_HEADER } from "@/lib/participants/shared";
-import type { SiteSettings } from "./shared";
+import type { HostSettings, SiteSettings } from "./shared";
 
 export const SETTINGS_API = "/api/settings";
 
@@ -15,7 +15,7 @@ export class SettingsApiError extends Error {
   }
 }
 
-async function parse(response: Response): Promise<SiteSettings> {
+async function parse(response: Response): Promise<HostSettings> {
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
@@ -24,10 +24,12 @@ async function parse(response: Response): Promise<SiteSettings> {
         : `서버 오류 (${response.status})`;
     throw new SettingsApiError(message, response.status);
   }
-  return body as SiteSettings;
+  return body as HostSettings;
 }
 
 /** 설정을 읽는다. hostPin 을 함께 보내면 비밀번호가 맞는지도 확인된다(틀리면 SettingsApiError 401) */
+export function fetchSettings(hostPin: string): Promise<HostSettings>;
+export function fetchSettings(): Promise<SiteSettings>;
 export async function fetchSettings(hostPin?: string): Promise<SiteSettings> {
   const headers: Record<string, string> = {};
   if (hostPin !== undefined) headers[HOST_PIN_HEADER] = hostPin;
@@ -35,9 +37,9 @@ export async function fetchSettings(hostPin?: string): Promise<SiteSettings> {
 }
 
 export async function saveSettings(
-  patch: Partial<SiteSettings>,
+  patch: Partial<HostSettings>,
   hostPin: string,
-): Promise<SiteSettings> {
+): Promise<HostSettings> {
   return parse(
     await fetch(SETTINGS_API, {
       method: "PUT",

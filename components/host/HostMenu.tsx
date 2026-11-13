@@ -13,7 +13,7 @@ import {
   saveSettings,
   SettingsApiError,
 } from "@/lib/settings/client";
-import type { SiteSettings } from "@/lib/settings/shared";
+import { MAX_ENTRY_CODE_LENGTH, type HostSettings } from "@/lib/settings/shared";
 
 /**
  * 사회자 전용 메뉴 (/host): 비밀번호를 확인한 뒤 사이트 전체 설정을 켜고 끈다.
@@ -31,15 +31,20 @@ export function HostMenu({ children }: { children?: ReactNode }) {
 }
 
 function Settings({ pin, children }: { pin: string; children?: ReactNode }) {
-  const [settings, setSettings] = useState<SiteSettings | undefined>(undefined);
+  const [settings, setSettings] = useState<HostSettings | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [entryCode, setEntryCode] = useState("");
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     fetchSettings(pin)
       .then((value) => {
-        if (!cancelled) setSettings(value);
+        if (!cancelled) {
+          setSettings(value);
+          setEntryCode(value.entryCode);
+        }
       })
       .catch((err) => {
         if (cancelled) return;
@@ -58,6 +63,21 @@ function Settings({ pin, children }: { pin: string; children?: ReactNode }) {
     setError(null);
     try {
       setSettings(await saveSettings({ allowRename: !settings.allowRename }, pin));
+    } catch (err) {
+      setError(describeSettingsError(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveEntryCode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+    try {
+      setSettings(await saveSettings({ entryCode }, pin));
+      setSaved(true);
     } catch (err) {
       setError(describeSettingsError(err));
     } finally {
@@ -111,6 +131,40 @@ function Settings({ pin, children }: { pin: string; children?: ReactNode }) {
         </button>
       </div>
 
+      <form
+        onSubmit={saveEntryCode}
+        className="flex flex-col gap-4 rounded-3xl border-4 border-zinc-200 bg-white px-8 py-6"
+      >
+        <label htmlFor="host-entry-code" className="text-3xl font-bold">
+          입장코드
+        </label>
+        <p className="text-xl text-zinc-600">
+          참가자 등록과 이름 변경에 사용할 코드를 정하고 참가자에게 안내해 주세요.
+        </p>
+        <input
+          id="host-entry-code"
+          value={entryCode}
+          onChange={(event) => {
+            setEntryCode(event.target.value);
+            setSaved(false);
+          }}
+          maxLength={MAX_ENTRY_CODE_LENGTH}
+          autoComplete="off"
+          disabled={!settings || saving}
+          className="rounded-2xl border-4 border-indigo-200 px-6 py-4 text-3xl font-bold"
+        />
+        <Button type="submit" disabled={!settings || saving}>
+          입장코드 저장
+        </Button>
+        {settings && !settings.entryCode && (
+          <p className="text-xl text-amber-800">입장코드를 설정해야 참가자가 등록할 수 있어요.</p>
+        )}
+        {saved && (
+          <p role="status" className="text-xl font-bold text-emerald-700">
+            입장코드를 저장했어요.
+          </p>
+        )}
+      </form>
       {children}
     </section>
   );

@@ -53,6 +53,10 @@ export async function registerParticipant(request: Request): Promise<Response> {
   const invalid = validateName(name);
   if (invalid) return errorResponse(invalid, 400);
 
+  const settings = await getSettingsStore().read();
+  if (!settings.entryCode) return errorResponse("사회자가 아직 입장코드를 설정하지 않았어요.", 403);
+  if (typeof body?.entryCode !== "string" || body.entryCode.trim() !== settings.entryCode)
+    return errorResponse("입장코드가 올바르지 않아요.", 403);
   const store = getParticipantStore();
 
   // 이미 다른 이름을 등록한 기기가 이름을 바꾸려는 경우는 사회자가 허용했을 때만 가능하다

@@ -96,3 +96,36 @@ test.describe("사회자 메뉴", () => {
     await expect(page.getByLabel("사회자 비밀번호")).toBeVisible();
   });
 });
+
+test("미등록 사회자가 입장코드를 설정하고 공개 응답에는 노출하지 않는다", async ({
+  page,
+  request,
+}) => {
+  await resetParticipants(request);
+  await page.goto("/host");
+  await page.getByLabel("사회자 비밀번호").fill(HOST_PIN);
+  await page.getByRole("button", { name: "들어가기" }).click();
+  await page.getByLabel("입장코드", { exact: true }).fill("새입장코드");
+  await page.getByRole("button", { name: "입장코드 저장" }).click();
+  await expect(page.getByRole("status")).toHaveText("입장코드를 저장했어요.");
+  await page.reload();
+  await expect(page.getByLabel("입장코드", { exact: true })).toHaveValue("새입장코드");
+  const publicSettings = await request.get("/api/settings");
+  expect(await publicSettings.json()).not.toHaveProperty("entryCode");
+  const denied = await request.put("/api/settings", { data: { entryCode: "변경시도" } });
+  expect(denied.status()).toBe(401);
+  for (const entryCode of ["", " ", "가".repeat(33), 123]) {
+    const invalid = await request.put("/api/settings", {
+      headers: { "x-host-pin": HOST_PIN },
+      data: { entryCode },
+    });
+    expect(invalid.status()).toBe(400);
+  }
+  for (const entryCode of ["교회2026", "새입장코드"]) {
+    const result = await request.post("/api/participants", {
+      data: { name: "코드확인", token: crypto.randomUUID(), entryCode },
+    });
+    expect(result.status()).toBe(entryCode === "새입장코드" ? 200 : 403);
+  }
+  await resetParticipants(request);
+});

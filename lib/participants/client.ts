@@ -89,12 +89,12 @@ export async function fetchParticipants(token?: string): Promise<ParticipantsRes
   return parse(await fetch(PARTICIPANTS_API, { headers, cache: "no-store" }));
 }
 
-export async function registerParticipant(identity: ParticipantIdentity) {
+export async function registerParticipant(identity: ParticipantIdentity, entryCode: string) {
   return parse(
     await fetch(PARTICIPANTS_API, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(identity),
+      body: JSON.stringify({ ...identity, entryCode }),
     }),
   );
 }

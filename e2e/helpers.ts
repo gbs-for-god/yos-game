@@ -8,6 +8,7 @@ import { expect, type APIRequestContext, type BrowserContext, type Page } from "
 
 /** 사회자 비밀번호. 서버와 같은 규칙으로 HOST_PIN 환경 변수가 없으면 기본값(lib/server/hostPin.ts)을 쓴다 */
 export const HOST_PIN = process.env.HOST_PIN || "0000";
+export const ENTRY_CODE = "교회2026";
 export const HOST_HEADERS = { "x-host-pin": HOST_PIN };
 
 /** lib/participants/client.ts 의 신원 저장 키 */
@@ -19,12 +20,19 @@ export type Identity = { name: string; token: string };
 export async function resetParticipants(request: APIRequestContext) {
   const response = await request.delete("/api/participants", { headers: HOST_HEADERS });
   expect(response.status()).toBe(204);
+  const settings = await request.put("/api/settings", {
+    headers: HOST_HEADERS,
+    data: { entryCode: ENTRY_CODE },
+  });
+  expect(settings.ok()).toBeTruthy();
 }
 
 /** 화면을 거치지 않고 서버에 참가자를 등록한다 (미리 등록해 둔 휴대폰 역할) */
 export async function registerViaApi(request: APIRequestContext, name: string): Promise<Identity> {
   const identity = { name, token: randomUUID() };
-  const response = await request.post("/api/participants", { data: identity });
+  const response = await request.post("/api/participants", {
+    data: { ...identity, entryCode: ENTRY_CODE },
+  });
   expect(response.ok()).toBeTruthy();
   return identity;
 }
@@ -51,6 +59,7 @@ export function randomName(prefix = "테스트"): string {
 /** /join 화면에서 참가자명을 입력해 등록하고, 원래 가려던 화면에 도착할 때까지 기다린다 */
 export async function fillJoinForm(page: Page, name: string, expectedUrl: string | RegExp) {
   await page.getByLabel("참가자명").fill(name);
+  await page.getByLabel("입장코드", { exact: true }).fill(ENTRY_CODE);
   await page.getByRole("button", { name: /^(참여하기|이 이름으로 바꾸기)$/ }).click();
   await expect(page).toHaveURL(expectedUrl);
 }

@@ -6,3 +6,7 @@ export type SiteSettings = {
 };
 
 export const DEFAULT_SETTINGS: SiteSettings = { allowRename: false };
+
+/** 사회자에게만 공개하는 설정. 입장코드는 일반 설정 응답에 포함하지 않는다 */
+export type HostSettings = SiteSettings & { entryCode: string };
+export const MAX_ENTRY_CODE_LENGTH = 32;

@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import missions from "../games/manito-mission/data/missions.json";
 import {
+  ENTRY_CODE,
   fillJoinForm,
   HOST_HEADERS,
   HOST_PIN,
@@ -193,6 +194,7 @@ test.describe("마니또 미션", () => {
     // 다른 기기는 같은 이름으로 등록할 수 없다
     const other = await openPhone(browser);
     await other.page.getByLabel("참가자명").fill(me);
+    await other.page.getByLabel("입장코드", { exact: true }).fill(ENTRY_CODE);
     await other.page.getByRole("button", { name: "참여하기" }).click();
     await expect(
       other.page.getByRole("alert").filter({ hasText: "이미 다른 기기에서 등록한 이름이에요." }),
