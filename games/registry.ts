@@ -23,8 +23,8 @@ export type GameEntry = {
  * 새 게임은 여기에 한 줄만 추가하면 목록과 라우트에 자동 반영된다.
  */
 export const games: GameEntry[] = [
-  { meta: numberDrawMeta, Component: NumberDrawGame },
   { meta: manitoMissionMeta, Component: ManitoMissionGame },
+  { meta: numberDrawMeta, Component: NumberDrawGame },
   { meta: kpopQuizMeta, Component: KpopQuizGame, HostPanel: KpopQuizHostPanel },
   { meta: personQuizMeta, Component: PersonQuizGame },
 ];

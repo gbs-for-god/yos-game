@@ -12,6 +12,18 @@ test("홈 화면에 등록된 게임 목록이 보인다", async ({ page }) => {
   await expect(page.getByRole("link", { name: /번호 뽑기/ })).toBeVisible();
 });
 
+test("게임 목록은 마니또 미션이 첫 번째이고 정해진 순서대로 보인다", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: /마니또 미션/ })).toBeVisible();
+  const titles = await page
+    .getByRole("link", { name: /마니또 미션|번호 뽑기|노래 맞추기|인물 맞추기/ })
+    .allInnerTexts();
+  const order = ["마니또 미션", "번호 뽑기", "노래 맞추기", "인물 맞추기"];
+  expect(titles.map((text) => order.findIndex((title) => text.includes(title)))).toEqual([
+    0, 1, 2, 3,
+  ]);
+});
+
 test("게임 카드를 누르면 게임 화면으로 이동하고, 목록으로 돌아올 수 있다", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: /번호 뽑기/ }).click();
