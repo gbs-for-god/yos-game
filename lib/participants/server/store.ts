@@ -4,6 +4,7 @@
  */
 
 import { getRedis, memoized } from "@/lib/server/redis";
+import { toHashRecord } from "@/lib/server/redisHash";
 
 export interface ParticipantStore {
   /** 이름 → 토큰 전체 */
@@ -16,11 +17,12 @@ export interface ParticipantStore {
 
 const KEY = "yos-game:participants";
 
-class RedisParticipantStore implements ParticipantStore {
+export class RedisParticipantStore implements ParticipantStore {
   constructor(private readonly redis: NonNullable<ReturnType<typeof getRedis>>) {}
 
   async readAll() {
-    return (await this.redis.hgetall<Record<string, string>>(KEY)) ?? {};
+    // hgetall 은 평평한 배열로 올 수 있어 객체로 바꿔 읽는다 (lib/server/redisHash.ts)
+    return toHashRecord(await this.redis.hgetall(KEY));
   }
   async claim(name: string, token: string) {
     // HSETNX: 필드가 없을 때만 기록한다 → 두 기기가 동시에 눌러도 한 기기만 성공

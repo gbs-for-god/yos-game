@@ -113,3 +113,34 @@
 ### 검증
 
 - `pnpm verify` 통과 (마니또 E2E 8개 포함 16개)
+
+## 2026-11-13 — 운영에서 참가자 이름이 "0", "1"(인덱스)로 보이는 문제 수정
+
+### 요청 프롬프트
+
+> https://yos-game.vercel.app/games/manito-mission 접속하면 이름에 index가 나오는데 무슨 문제일까
+
+> 1. 수정하고 verify 돌려
+> 2. docs/prompts 에 기록 남겨
+> 3. redis 응답 형태를 흉내 내는 테스트를 추가해
+
+### 구현 결정
+
+- **원인**: `lib/server/redis.ts` 가 Redis 클라이언트를 `automaticDeserialization: false` 로 만든다. 설치된 `@upstash/redis` 는 이 옵션에서 `hgetall` 결과를 객체로 바꾸지 않고 `[필드, 값, 필드, 값, …]` 평평한 배열 그대로 돌려준다. 코드가 이를 `{이름: 토큰}` 객체로 가정하고 `Object.keys()` 로 읽어 이름 자리에 "0", "1" 인덱스가 들어갔다. 운영 API(`/api/participants`, `/api/manito-mission/session`)가 `["0","1"]` 을 돌려주는 것으로 확인했다.
+- **왜 못 잡았나**: 로컬·E2E 는 Redis 환경 변수가 없어 메모리 저장소를 쓰고, 메모리 저장소는 진짜 객체를 돌려주므로 차이가 드러나지 않았다.
+- **수정**: 의존성 없는 변환 함수 `toHashRecord`(`lib/server/redisHash.ts`)를 만들어 배열·객체·null 응답을 모두 `{필드: 값}` 로 바꾼다. `hgetall` 을 쓰는 두 곳(참여자 저장소 `readAll`, 마니또 확인 기록 `read`)이 이 함수를 거친다. 저장(`hsetnx`/`hset`)은 원래 정상이어서 Redis 에 쌓인 데이터는 그대로 쓸 수 있다.
+- **테스트**: 운영과 같은 응답 형태의 가짜 Redis 로 두 저장소를 직접 호출하는 `e2e/redis-hash.spec.ts` 를 추가했다. 브라우저·서버 없이 돌아가며, 두 저장소 클래스(`RedisParticipantStore`, `UpstashStore`)를 테스트에서 쓰도록 export 했다.
+- **배포 후 조치**: 이미 시작된 마니또 세션에는 "0", "1" 이름이 저장되어 있으므로, 배포 뒤 사회자 화면에서 세션을 초기화하고 다시 시작해야 한다.
+- **함께 고친 기존 E2E 실패**: 최근 커밋(`ParticipantGate` 가 서버에 토큰을 확인해 모르는 토큰이면 `/join` 으로 보냄)부터 서버에 없는 신원을 브라우저에만 심는 테스트(홈·번호 뽑기·노래 맞추기·인물 맞추기)가 모두 실패하고 있었다. `seedIdentity` 가 서버에도 신원을 등록하도록 바꾸고, 참가자 목록을 지우는 spec 과 겹치지 않게 `chromium` 프로젝트가 `manito-mission` 프로젝트 뒤에 실행되도록 했다. 마니또 "기기 초기화" 테스트는 해제된 휴대폰이 안내 화면 대신 `/join` 으로 이동하는 현재 동작에 맞췄다.
+
+### 변경 파일
+
+- `lib/server/redisHash.ts` (신규), `lib/participants/server/store.ts`, `games/manito-mission/server/store.ts`
+- `e2e/redis-hash.spec.ts` (신규), `e2e/helpers.ts`, `e2e/manito-mission.spec.ts`, `playwright.config.ts`
+- `docs/TESTING.md`
+
+### 검증
+
+- 새 테스트 7개 통과, `pnpm check` 통과
+- `pnpm verify`: 51개 통과, 4개 실패 — 모두 인물 맞추기 480장 확장 작업(미커밋)이 아직 `people.json`·사진 120개 상태라서 생긴 실패이며 이번 수정과 무관하다.
+- 실제 Upstash 연결은 Vercel 배포 후 `/api/participants` 응답이 실제 이름으로 나오는지 확인해야 한다.

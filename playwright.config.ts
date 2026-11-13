@@ -25,12 +25,14 @@ export default defineConfig({
    * 참가자 등록·마니또 세션은 서버 한 곳에 저장되어 spec 끼리 공유된다. 특히 마니또 멤버는
    * "시작할 때 등록된 참가자 전체"라서 다른 spec 이 동시에 등록하면 인원이 달라진다.
    * 그래서 서버 상태를 쓰는 spec 은 프로젝트로 나눠 차례로(join → host → manito) 실행하고,
-   * 나머지(홈·번호 뽑기 등)는 서버에 등록하지 않으므로 그 옆에서 병렬로 돌린다.
+   * 나머지(홈·번호 뽑기 등)는 신원을 서버에 등록해 두고 시작하므로 위 spec 들이 모두 끝난 뒤에 돌린다.
    */
   projects: [
     {
       name: "chromium",
       testIgnore: SERVER_STATE_SPECS,
+      // seedIdentity 가 서버에 신원을 등록하므로, 참가자 목록을 지우는 spec 들이 끝난 뒤에 돌린다
+      dependencies: ["manito-mission"],
       use: desktop,
     },
     {

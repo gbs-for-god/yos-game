@@ -38,10 +38,22 @@ export async function registerViaApi(request: APIRequestContext, name: string): 
 }
 
 /**
- * 브라우저에 신원을 심어 "이미 등록한 기기"로 만든다. 서버에는 기록하지 않으므로
- * 서버 상태를 쓰지 않는 테스트(홈, 번호 뽑기)가 참가자 목록을 어지럽히지 않는다.
+ * 브라우저에 신원을 심어 "이미 등록한 기기"로 만든다.
+ * ParticipantGate 가 서버에 토큰을 확인해 모르는 토큰이면 등록을 풀어 버리므로, 서버에도 같은 신원을 등록해 둔다.
+ * 서버의 참가자 목록을 지우는 spec(join · host · manito-mission)과 겹치지 않도록
+ * 이 함수를 쓰는 chromium 프로젝트는 그 spec 들이 끝난 뒤에 실행된다(playwright.config.ts).
  */
 export async function seedIdentity(context: BrowserContext, identity: Identity) {
+  const settings = await context.request.put("/api/settings", {
+    headers: HOST_HEADERS,
+    data: { entryCode: ENTRY_CODE },
+  });
+  expect(settings.ok()).toBeTruthy();
+  const registered = await context.request.post("/api/participants", {
+    data: { ...identity, entryCode: ENTRY_CODE },
+  });
+  expect(registered.ok()).toBeTruthy();
+
   await context.addInitScript(
     ([key, value]) => {
       // 테스트 중 이름을 바꾸면 그 값을 유지해야 하므로 비어 있을 때만 심는다

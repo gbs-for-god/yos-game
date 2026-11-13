@@ -10,6 +10,7 @@
 
 import type { Redis } from "@upstash/redis";
 import { getRedis, memoized } from "@/lib/server/redis";
+import { toHashRecord } from "@/lib/server/redisHash";
 import { parseSession, type Session, type ViewedMap } from "../logic";
 
 export type StoredState = {
@@ -30,17 +31,17 @@ export interface SessionStore {
 const SESSION_KEY = "yos-game:manito-mission:session";
 const VIEWED_KEY = "yos-game:manito-mission:viewed";
 
-class UpstashStore implements SessionStore {
+export class UpstashStore implements SessionStore {
   constructor(private readonly redis: Redis) {}
 
   async read(): Promise<StoredState> {
     const [raw, viewedHash] = await this.redis
       .pipeline()
       .get<string | null>(SESSION_KEY)
-      .hgetall<Record<string, string>>(VIEWED_KEY)
+      .hgetall(VIEWED_KEY)
       .exec();
     const viewed: ViewedMap = {};
-    for (const name of Object.keys(viewedHash ?? {})) viewed[name] = true;
+    for (const name of Object.keys(toHashRecord(viewedHash))) viewed[name] = true;
     return { session: parseSession(raw), viewed };
   }
 

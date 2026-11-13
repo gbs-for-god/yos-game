@@ -25,7 +25,8 @@ pnpm exec playwright show-report                     # 마지막 리포트 보�
 - 타이머가 있는 게임은 `page.clock` API로 시간을 제어한다
 - HTTP 상태 코드(404 등)는 검증하지 않는다 — `cacheComponents` 스트리밍 때문에 200으로 응답할 수 있으므로 화면 내용으로 검증
 - 서버 상태를 쓰는 테스트(참여자 등록, 마니또 미션)는 테스트끼리 상태를 공유하므로 `test.describe.configure({ mode: "serial" })`로 직렬 실행하고, `beforeEach`에서 사회자 권한으로 `DELETE /api/participants`·`DELETE /api/<slug>/session`을 호출해 초기화한다
-- 등록하지 않은 기기는 모든 화면에서 `/join`으로 가므로, 서버 상태를 쓰지 않는 테스트(홈·번호 뽑기)는 `e2e/helpers.ts`의 `seedIdentity`로 브라우저에 신원을 심어 시작한다
+- 등록하지 않은 기기는 모든 화면에서 `/join`으로 가고, 서버가 모르는 토큰도 등록이 풀린 것으로 보고 `/join`으로 보낸다. 그래서 홈·번호 뽑기 같은 테스트는 `e2e/helpers.ts`의 `seedIdentity`로 시작한다(브라우저에 신원을 심고 서버에도 등록). 참가자 목록을 지우는 spec 이 모두 끝난 뒤에 `chromium` 프로젝트가 돌도록 `playwright.config.ts`에서 순서를 잡아 둔다
+- 운영 Redis 와 로컬 메모리 저장소는 응답 형태가 다르다(`hgetall` 은 운영에서 평평한 배열). Redis 를 읽는 코드를 추가하면 `lib/server/redisHash.ts`를 거치고, 가짜 Redis 로 저장소를 직접 부르는 `e2e/redis-hash.spec.ts` 방식으로 검증한다
 - 참여자로 행동하는 테스트는 `registerViaApi`로 서버에 미리 등록하고 `seedIdentity`로 그 신원을 휴대폰 컨텍스트에 심는다. 입력 화면 자체를 검증할 때만 `fillJoinForm`을 쓴다 (`e2e/manito-mission.spec.ts` 참고)
 - 외부 스크립트(예: YouTube IFrame API)에 의존하는 게임은 `page.route`로 스크립트를 가짜로 바꿔치기해 네트워크 없이 검증하고, 타이머는 `page.clock`으로 돌린다 (`e2e/kpop-quiz.spec.ts` 참고)
 - 이름 변경 허용 설정은 서버에 남으므로 `setAllowRename`(`e2e/helpers.ts`)으로 테스트마다 명시해 둔다

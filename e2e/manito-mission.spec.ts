@@ -272,10 +272,10 @@ test.describe("마니또 미션", () => {
     await page.getByRole("button", { name: `${me} 기기 초기화` }).click();
     await expect(hostRow(page, me).getByTestId("host-row-device")).toHaveText("⬜ 미등록");
 
+    // 등록이 풀린 기기는 다음 확인 주기에 참가자 등록 화면(/join)으로 이동한다
     await expect(
-      phone.page.getByRole("heading", { name: "이 기기의 등록이 해제되었어요" }),
+      phone.page.getByRole("heading", { name: "👋 참가자명을 입력해 주세요" }),
     ).toBeVisible({ timeout: SYNC_TIMEOUT });
-    await phone.page.getByRole("link", { name: "👋 참여자 등록", exact: true }).click();
     await fillJoinForm(phone.page, me, GAME_URL);
     await viewMine(phone.page);
     await expect(phone.page.getByTestId("manito-name")).toHaveText(manito);
