@@ -28,7 +28,7 @@ export function HostMenu({ children }: { children?: ReactNode }) {
     // 잠긴 상태에서도 메인 화면으로 돌아갈 수 있어야 한다
     return (
       <div className="flex flex-1 flex-col gap-6">
-        <div>
+        <div className="flex justify-end">
           <Link href="/" className="text-xl text-zinc-500 underline hover:text-zinc-900">
             ← 메인으로
           </Link>
