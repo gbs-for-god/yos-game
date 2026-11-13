@@ -149,6 +149,12 @@ export function moveBy(state: QuizState, delta: 1 | -1): QuizState {
   return index === state.index ? state : { ...state, index };
 }
 
+/** 목록에서 고른 번호(0부터)의 곡으로 바로 이동한다. 범위를 벗어나면 가장 가까운 곡으로 맞춘다. */
+export function goTo(state: QuizState, index: number): QuizState {
+  const target = Math.min(Math.max(Math.trunc(index), 0), state.songs.length - 1);
+  return target === state.index ? state : { ...state, index: target };
+}
+
 /** 지금 곡의 정답을 공개한다. 한 번 공개하면 초기화(resetQuiz)하기 전까지 계속 공개 상태다. */
 export function revealAnswer(state: QuizState): QuizState {
   return isRevealed(state)

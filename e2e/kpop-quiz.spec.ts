@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import allSongs from "../games/kpop-quiz/data/songs.json";
-import { snippetStart, validateSongs, type Song } from "../games/kpop-quiz/logic";
+import { createQuiz, goTo, snippetStart, validateSongs, type Song } from "../games/kpop-quiz/logic";
 import { HOST_PIN, randomName, seedIdentity } from "./helpers";
 
 /**
@@ -106,7 +106,7 @@ test.describe("노래 맞추기", () => {
     await login(page);
     const first = songs[0];
 
-    // 블라인드: 가리개가 덮여 있고 가수·곡명은 화면 어디에도 없다
+    // 블라인드: 가리개가 덮여 있고 가수·곡명은 화면 어디에도 없다 (문제 목록에도 번호만 있다)
     await expect(page.getByTestId("blind-cover")).toBeVisible();
     await expect(page.getByText(first.title)).toHaveCount(0);
     await expect(page.getByText(first.artist)).toHaveCount(0);
@@ -246,6 +246,46 @@ test.describe("노래 맞추기", () => {
     await expect(page.getByTestId("answer-title")).toHaveText(songs[0].title);
   });
 
+  test("사회자 메뉴에서 테마별 정답을 문제 번호 순서대로 미리 볼 수 있고, 로그인 전에는 보이지 않는다", async ({
+    page,
+  }) => {
+    // 잠긴 사회자 메뉴에는 곡 정보가 없다
+    await page.goto("/host");
+    await expect(page.getByLabel("사회자 비밀번호")).toBeVisible();
+    await expect(page.getByText(songs[0].title)).toHaveCount(0);
+    await expect(page.getByTestId("kpop-answers-2000s")).toHaveCount(0);
+
+    // 게임에서 2번 문제까지 이동해 1번만 공개한다
+    await login(page);
+    await page.getByRole("button", { name: "🎉 정답 공개" }).click();
+    const order = await page.evaluate((key) => {
+      const stored = JSON.parse(window.localStorage.getItem(key) ?? "null") as {
+        quizzes: Record<string, { order: string[] }>;
+      };
+      return stored.quizzes["2000s"].order;
+    }, STATE_KEY);
+
+    await page.goto("/host");
+    const panel = page.getByTestId("kpop-answers-2000s");
+    await panel.getByText(/2000년대 정답/).click();
+    const items = panel.getByRole("listitem");
+    await expect(items).toHaveCount(songs.length);
+
+    // 게임 화면의 문제 번호와 같은 순서이고, 곡명·가수가 모두 적혀 있다
+    for (const [i, id] of order.entries()) {
+      const song = songs.find((s) => s.id === id)!;
+      await expect(items.nth(i)).toContainText(`${i + 1}`);
+      await expect(items.nth(i)).toContainText(song.title);
+      await expect(items.nth(i)).toContainText(song.artist);
+    }
+    // 공개한 문제에만 "공개됨" 표시가 붙는다
+    await expect(panel.getByText("✅ 공개됨")).toHaveCount(1);
+    await expect(items.nth(0)).toContainText("✅ 공개됨");
+
+    // 다른 테마도 각각 접어 둔 채로 있다
+    await expect(page.getByTestId("kpop-answers-ccm")).toBeVisible();
+  });
+
   test("사회자 메뉴의 게임 초기화는 공개한 정답을 모두 가리고 곡 순서를 섞는다", async ({
     page,
   }) => {
@@ -320,6 +360,60 @@ test.describe("노래 맞추기", () => {
     await page.keyboard.press("Space");
     await expect(page.getByRole("button", { name: "⏸ 일시정지" })).toBeVisible();
     await expect(page.getByTestId("answer-title")).toHaveCount(0);
+  });
+
+  test("문제 목록: 공개한 문제만 번호와 노래제목이 보이고, 색으로 구분되며, 누르면 그 문제로 이동한다", async ({
+    page,
+  }) => {
+    await login(page);
+    const list = page.getByTestId("question-list");
+    await expect(list.getByRole("listitem")).toHaveCount(songs.length);
+
+    // 공개 전: 번호만 보이고 곡 제목은 화면(DOM)에 없다
+    const listText = await list.innerText();
+    for (const song of songs) expect(listText).not.toContain(song.title);
+    await expect(list.getByRole("button", { name: /정답 공개됨$/ })).toHaveCount(0);
+    await expect(list.getByRole("button", { name: /정답 미공개$/ })).toHaveCount(songs.length);
+    await expect(list.getByRole("button", { name: "1번 문제 정답 미공개" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+
+    // 1번 공개 → 그 항목만 "번호 + 노래제목"이 되고 색이 달라진다
+    await page.getByRole("button", { name: "🎉 정답 공개" }).click();
+    const first = list.getByRole("button", { name: `1번 ${songs[0].title} 정답 공개됨` });
+    await expect(first).toContainText(songs[0].title);
+    await expect(list.getByRole("button", { name: /정답 공개됨$/ })).toHaveCount(1);
+    const color = (locator: typeof first) =>
+      locator.evaluate((el) => getComputedStyle(el).backgroundColor);
+    const unrevealed = list.getByRole("button", { name: "2번 문제 정답 미공개" });
+    expect(await color(first)).not.toBe(await color(unrevealed));
+    // 아직 공개하지 않은 다른 문제의 제목은 여전히 없다
+    await expect(list.getByText(songs[2].title)).toHaveCount(0);
+
+    // 다른 번호를 누르면 그 문제로 이동하고, 공개하지 않은 문제는 정답이 가려져 있다
+    await list.getByRole("button", { name: "3번 문제 정답 미공개" }).click();
+    await expect(page.getByTestId("progress")).toContainText(`문제 3 / ${songs.length}`);
+    await expect(page.getByTestId("answer-title")).toHaveCount(0);
+
+    // 공개한 문제를 누르면 계속 공개되어 있다
+    await first.click();
+    await expect(page.getByTestId("progress")).toContainText(`문제 1 / ${songs.length}`);
+    await expect(page.getByTestId("answer-title")).toHaveText(songs[0].title);
+
+    // 이동한 위치와 공개 표시는 새로고침해도 유지된다
+    await list.getByRole("button", { name: "3번 문제 정답 미공개" }).click();
+    await page.reload();
+    await expect(page.getByTestId("progress")).toContainText(`문제 3 / ${songs.length}`);
+    await expect(list.getByRole("button", { name: /정답 공개됨$/ })).toHaveCount(1);
+  });
+
+  test("goTo 는 번호로 바로 이동하고 범위를 벗어나면 가장 가까운 곡으로 맞춘다", () => {
+    const quiz = createQuiz(songs as Song[]);
+    expect(goTo(quiz, 2).index).toBe(2);
+    expect(goTo(quiz, -5).index).toBe(0);
+    expect(goTo(quiz, 999).index).toBe(songs.length - 1);
+    expect(goTo(quiz, 0)).toBe(quiz);
   });
 
   test("숫자 단축키: 1 앞부분 1초, 2 앞부분 3초, 3 코러스 듣기", async ({ page }) => {

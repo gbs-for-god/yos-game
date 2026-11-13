@@ -9,6 +9,7 @@ import { hostPinStore, useVerifiedHostPin } from "@/lib/host/client";
 import {
   chorusSeconds,
   currentSong,
+  goTo,
   hasNext,
   hasPrev,
   isRevealed,
@@ -23,6 +24,7 @@ import {
   type QuizState,
   type ThemeId,
 } from "./logic";
+import { QuestionList } from "./QuestionList";
 import { SONGS, SONGS_ERROR } from "./songs";
 import { Stage } from "./Stage";
 import { chooseTheme, gameStore, loadGameState, updateQuiz } from "./storage";
@@ -90,6 +92,7 @@ function Board({ theme, quiz }: { theme: ThemeId; quiz: QuizState }) {
   }, [theme, playChorus]);
   const prev = useCallback(() => updateQuiz(theme, (q) => moveBy(q, -1)), [theme]);
   const next = useCallback(() => updateQuiz(theme, (q) => moveBy(q, 1)), [theme]);
+  const select = useCallback((index: number) => updateQuiz(theme, (q) => goTo(q, index)), [theme]);
 
   // 단축키: Space 재생/정지, Enter 정답 공개, ←/→ 이전/다음 곡, 1·2 앞부분 듣기, 3 코러스 듣기
   useEffect(() => {
@@ -197,6 +200,8 @@ function Board({ theme, quiz }: { theme: ThemeId; quiz: QuizState }) {
               <p className="text-4xl font-black text-zinc-600 md:text-6xl">정답 공개 전 · ? ? ?</p>
             )}
           </div>
+
+          <QuestionList quiz={quiz} onSelect={select} />
         </div>
 
         <div className="flex flex-col gap-4">
