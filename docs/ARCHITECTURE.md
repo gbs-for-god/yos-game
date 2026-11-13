@@ -93,7 +93,7 @@ flowchart LR
 - **구조**: `app/api/<slug>/…/route.ts`는 요청을 `games/<slug>/server/handlers.ts`로 넘기기만 한다. 핸들러는 요청 검증 → `logic.ts` 순수 함수로 상태 전이 → `server/store.ts`에 기록 → 응답 순서로 동작한다
 - **동기화**: 서버 푸시 없이 클라이언트가 3초 간격으로 다시 읽는다 (`games/<slug>/client.ts`의 `usePolledState`). 동작(POST)의 응답으로 자기 화면은 즉시 갱신한다
 - **동시 쓰기**: 여러 기기가 동시에 쓰는 값(확인 여부 등)은 Redis 해시의 필드 단위로 써서 덮어쓰기를 피한다. 한 사람(사회자)만 바꾸는 값은 JSON 하나로 저장한다
-- **권한**: 사회자 동작은 `x-host-pin` 헤더의 비밀번호로 구분한다(`lib/server/hostPin.ts`, `HOST_PIN` 환경 변수, 없으면 기본값 `9409`). 참여자는 `x-participant-token`으로 구분하며 본인 것과 공개된 정보만 내려 준다
+- **권한**: 사회자 동작은 `x-host-pin` 헤더의 비밀번호로 구분한다(`lib/server/hostPin.ts`, `HOST_PIN` 환경 변수, 없으면 기본값 `0000`). 참여자는 `x-participant-token`으로 구분하며 본인 것과 공개된 정보만 내려 준다
 - **클라이언트 경계**: `games/<slug>/server/`와 `lib/*/server/`, `lib/server/`는 Route Handler에서만 import 한다. 클라이언트가 쓰는 타입은 `import type`으로만 가져온다
 
 ## 하지 않는 것 (현 단계)

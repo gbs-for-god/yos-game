@@ -117,3 +117,18 @@
 ### 검증
 
 - `pnpm verify` 통과
+
+## 2026-11-13 — 사회자 기본 비밀번호 변경
+
+### 요청 프롬프트
+
+> 사회자 비밀번호는 0000으로 변경
+
+### 구현 결정
+
+- `lib/server/hostPin.ts`의 `DEFAULT_HOST_PIN`을 `"9409"` → `"0000"`으로 바꾸고, E2E 헬퍼·`.env.example`·문서의 기본값 표기도 맞췄다. `HOST_PIN` 환경 변수가 있으면 여전히 그 값이 우선한다.
+- 보안: 0000은 추측하기 쉬우므로 Vercel 운영 환경에서는 `HOST_PIN`을 따로 설정하는 편이 안전하다.
+
+### 변경 파일
+
+- `lib/server/hostPin.ts`, `e2e/helpers.ts`, `.env.example`, `docs/ARCHITECTURE.md`, `games/manito-mission/README.md`

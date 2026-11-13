@@ -6,7 +6,7 @@
 import { HOST_PIN_HEADER } from "@/lib/participants/shared";
 
 /** HOST_PIN 환경 변수가 없을 때 쓰는 기본 비밀번호 (로컬 개발·E2E 용). 운영에서는 반드시 HOST_PIN 을 설정한다 */
-export const DEFAULT_HOST_PIN = "9409";
+export const DEFAULT_HOST_PIN = "0000";
 
 export function hostPin(): string {
   return process.env.HOST_PIN || DEFAULT_HOST_PIN;
