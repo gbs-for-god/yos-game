@@ -100,38 +100,10 @@ export function assignManitos(
 }
 
 /**
- * 멤버마다 서로 다른 미션 `count`개를 나눠준다.
- * 섞은 카드 더미에서 차례로 꺼내 주고, 더미가 떨어지면 다시 섞어 채운다
- * → 미션 수가 충분할 때는 멤버끼리 겹치지 않고, 부족할 때도 최대한 고르게 분배된다.
+ * 한 사람의 미션 `count`개를 전체 미션에서 중복 없이 무작위로 뽑는다.
+ * 다른 사람이 무엇을 받았는지와 무관한 독립 시행이며, `exclude`(이전에 받은 미션)는 뽑지 않는다.
+ * 제외하고 남은 미션이 `count`개보다 적을 때만 제외한 미션으로 채운다.
  */
-export function dealMissions(
-  names: readonly string[],
-  missions: readonly Mission[],
-  count: number,
-  random: () => number,
-): Record<string, string[]> {
-  const perMember = Math.min(count, missions.length);
-  let deck: string[] = [];
-  const result: Record<string, string[]> = {};
-
-  for (const name of names) {
-    const hand: string[] = [];
-    while (hand.length < perMember) {
-      if (deck.length === 0) {
-        deck = shuffle(
-          missions.map((m) => m.id),
-          random,
-        );
-      }
-      const id = deck.pop() as string;
-      if (!hand.includes(id)) hand.push(id);
-    }
-    result[name] = hand;
-  }
-  return result;
-}
-
-/** 한 사람의 미션만 새로 뽑는다 (사회자 "미션 다시 뽑기"). 기존 것과 최대한 겹치지 않게 고른다. */
 export function pickMissions(
   missions: readonly Mission[],
   count: number,
@@ -146,6 +118,21 @@ export function pickMissions(
   if (fresh.length >= perMember) return fresh.slice(0, perMember);
   const fallback = shuffle(exclude, random);
   return [...fresh, ...fallback].slice(0, perMember);
+}
+
+/**
+ * 멤버마다 미션 `count`개를 배정한다. 사람마다 독립적으로 `pickMissions`(제외 없음)를 한 번씩 하므로
+ * 한 사람 안에서는 중복이 없지만, 서로 다른 사람끼리는 같은 미션을 받을 수 있다.
+ */
+export function dealMissions(
+  names: readonly string[],
+  missions: readonly Mission[],
+  count: number,
+  random: () => number,
+): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const name of names) result[name] = pickMissions(missions, count, random);
+  return result;
 }
 
 export type CreateSessionOptions = {
@@ -206,7 +193,7 @@ export function createSession(
   };
 }
 
-/** 사회자 전용: 특정 멤버의 미션만 다시 뽑는다. 마니또는 그대로 둔다. */
+/** 사회자 전용: 특정 멤버의 미션만 다시 뽑는다. 이전에 받은 미션은 제외하고, 마니또는 그대로 둔다. */
 export function redrawMissions(
   session: Session,
   name: string,
